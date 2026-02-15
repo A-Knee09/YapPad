@@ -2,56 +2,31 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	style = lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("255")).
-		Background(lipgloss.Color("161")).
-		Width(60).
-		Align(lipgloss.Center)
-
-	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
-
-	cursorLineStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("38"))
-
-	promptStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("141"))
-)
+func init() {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Fatal("Error getting home directory")
+	}
+	vaultDir = fmt.Sprintf("%s/.notemaker", homeDir)
+}
 
 type model struct {
 	keys                   keyMap
 	help                   help.Model
 	newFileInput           textinput.Model
 	createFileInputVisible bool
-}
-
-type keyMap struct {
-	Quit key.Binding
-	New  key.Binding
-	List key.Binding
-	Save key.Binding
-	Back key.Binding
-}
-
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.New, k.List, k.Save, k.Back, k.Quit}
-}
-
-func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.New, k.List, k.Save},
-		{k.Back, k.Quit},
-	}
+	currentFile            *os.File
+	noteTextArea           textarea.Model
 }
 
 func (m model) Init() tea.Cmd {
@@ -60,23 +35,70 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+
+		// Global keybindings
 		switch {
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 
 		case key.Matches(msg, m.keys.New):
 			m.createFileInputVisible = true
+			m.newFileInput.Focus()
 			return m, nil
+		}
+
+		// Contextual keys (only when input is visible)
+		if m.createFileInputVisible {
+			switch msg.String() {
+
+			case "enter":
+				filename := m.newFileInput.Value()
+				if filename == "" {
+					return m, nil
+				}
+
+				filepath := fmt.Sprintf("%s/%s.md", vaultDir, filename)
+
+				// If file already exists, do nothing
+				if _, err := os.Stat(filepath); err == nil {
+					return m, nil
+				}
+
+				f, err := os.Create(filepath)
+				if err != nil {
+					// Don't crash the TUI
+					return m, nil
+				}
+
+				m.currentFile = f
+				m.createFileInputVisible = false
+				m.newFileInput.Blur()
+				m.newFileInput.SetValue("")
+				return m, nil
+
+			case "esc":
+				m.createFileInputVisible = false
+				m.newFileInput.Blur()
+				m.newFileInput.SetValue("")
+				return m, nil
+			}
 		}
 	}
 
+	// Let textinput handle typing when visible
 	if m.createFileInputVisible {
 		m.newFileInput, cmd = m.newFileInput.Update(msg)
+		return m, cmd
 	}
 
-	return m, cmd
+	if m.currentFile != nil {
+		m.noteTextArea, cmd = m.noteTextArea.Update(msg)
+	}
+
+	return m, nil
 }
 
 func (m model) View() string {
@@ -86,20 +108,28 @@ func (m model) View() string {
 	if m.createFileInputVisible {
 		view = m.newFileInput.View()
 	}
+	if m.currentFile != nil {
+		view = m.noteTextArea.View()
+	}
 
 	return fmt.Sprintf("\n%s\n\n%s\n\n%s", welcome, view, helpView)
 }
 
 func initialModel() model {
+	err := os.MkdirAll(vaultDir, 0o750)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	// Keybinds
 	keys := keyMap{
 		New: key.NewBinding(
 			key.WithKeys("ctrl+n"),
-			key.WithHelp("ctrl+n", "Create New File 🗒"),
+			key.WithHelp("ctrl+n", "new file 🗒"),
 		),
 		Quit: key.NewBinding(
-			key.WithKeys("q", "ctrl+c"),
-			key.WithHelp("q", "Quit ⏻"),
+			key.WithKeys("ctrl+c"),
+			key.WithHelp("ctrl+c", "quit ⏻"),
 		),
 		List: key.NewBinding(
 			key.WithKeys("ctrl+l"),
@@ -125,10 +155,16 @@ func initialModel() model {
 	ti.PromptStyle = cursorLineStyle
 	ti.TextStyle = promptStyle
 
+	// Init text textarea
+	ta := textarea.New()
+	ta.Placeholder = "Write your yap here"
+	ta.Focus()
+
 	return model{
 		keys:                   keys,
 		newFileInput:           ti,
 		createFileInputVisible: false,
+		noteTextArea:           ta,
 		help:                   help.New(),
 	}
 }
