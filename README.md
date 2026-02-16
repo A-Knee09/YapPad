@@ -17,6 +17,7 @@ and run:
 
 ```bash
 go run main.go
+```
 
 ## Run with Makefile
 ```bash
