@@ -1,4 +1,4 @@
-module github.com/A-Knee09/Note-maker-bubbletea
+module github.com/A-Knee09/YapPad
 
 go 1.25.7
 

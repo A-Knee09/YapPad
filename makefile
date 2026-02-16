@@ -1,5 +1,5 @@
 build:
-	@go build -o note-maker .
+	@go build -o YapPad .
 
 run: build
-	./note-maker
+	./YapPad

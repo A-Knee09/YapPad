@@ -47,8 +47,8 @@ func (k keyMap) ShortHelp() []key.Binding {
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.New, k.List, k.Save, k.Delete},
-		{k.Rename, k.Back, k.Quit},
+		{k.New, k.List, k.Save, k.Delete, k.Rename},
+		{k.Back, k.Quit},
 	}
 }
 
@@ -57,7 +57,7 @@ func init() {
 	if err != nil {
 		log.Fatal("Error getting home directory")
 	}
-	vaultDir = fmt.Sprintf("%s/.notemaker", homeDir)
+	vaultDir = fmt.Sprintf("%s/.YapPad", homeDir)
 }
 
 type model struct {
@@ -134,7 +134,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Back):
-			// If we're in list view, go back to clean state
+			// If in list view, go back to clean state
 			if m.showingList {
 				m.showingList = false
 				if m.currentFile != nil {
@@ -145,6 +145,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+			// If in textarea with a file open, save and show list
 			if m.currentFile != nil {
 				if err := m.currentFile.Truncate(0); err == nil {
 					if _, err := m.currentFile.Seek(0, 0); err == nil {
@@ -159,6 +160,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 			}
 
+			// If in file input, close it
 			m.createFileInputVisible = false
 			m.renameMode = false
 			m.newFileInput.Blur()
@@ -193,6 +195,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if m.showingList {
+			// Don't handle enter if currently filtering
+			if m.list.FilterState() == list.Filtering {
+				m.list, cmd = m.list.Update(msg)
+				return m, cmd
+			}
+
 			switch msg.String() {
 			case "enter":
 				selected, ok := m.list.SelectedItem().(item)
@@ -277,19 +285,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	if m.currentFile != nil {
-		m.noteTextArea, cmd = m.noteTextArea.Update(msg)
-	}
-
 	if m.showingList {
 		m.list, cmd = m.list.Update(msg)
+		return m, cmd
+	}
+
+	if m.currentFile != nil {
+		m.noteTextArea, cmd = m.noteTextArea.Update(msg)
 	}
 
 	return m, nil
 }
 
 func (m model) View() string {
-	welcome := style.Render("Welcome to Note Maker twin :D")
+	welcome := style.Render("Welcome to YapPad twin :D")
 	view := ""
 	helpView := m.help.View(m.keys)
 
@@ -336,8 +345,28 @@ func initialModel() model {
 	ta.Focus()
 
 	noteList := listFiles()
-	finalList := list.New(noteList, list.NewDefaultDelegate(), 0, 0)
-	finalList.Title = "All Notes"
+
+	// Create custom delegate with proper styles
+	delegate := list.NewDefaultDelegate()
+	delegate.Styles.SelectedTitle = delegate.Styles.SelectedTitle.
+		Foreground(lipgloss.Color("170")).
+		BorderForeground(lipgloss.Color("170"))
+	delegate.Styles.SelectedDesc = delegate.Styles.SelectedDesc.
+		Foreground(lipgloss.Color("243")).
+		BorderForeground(lipgloss.Color("170"))
+
+	finalList := list.New(noteList, delegate, 0, 0)
+	finalList.Title = "All Yaps"
+	finalList.SetShowStatusBar(true)
+	finalList.SetFilteringEnabled(true)
+	finalList.Styles.Title = lipgloss.NewStyle().
+		Background(lipgloss.Color("62")).
+		Foreground(lipgloss.Color("230")).
+		Padding(0, 1)
+	finalList.Styles.FilterPrompt = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("170"))
+	finalList.Styles.FilterCursor = lipgloss.NewStyle().
+		Foreground(lipgloss.Color("170"))
 
 	helpModel := help.New()
 	helpModel.ShowAll = true // Always show full help in columns
