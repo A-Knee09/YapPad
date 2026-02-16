@@ -23,34 +23,33 @@ var (
 		Width(60).
 		Align(lipgloss.Center)
 
-	cursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
-
-	cursorLineStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("38"))
-
-	promptStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("141"))
+	cursorStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("111"))
+	cursorLineStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("38"))
+	promptStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("141"))
 
 	vaultDir string
 	docStyle = lipgloss.NewStyle().Margin(1, 2)
 )
 
 type keyMap struct {
-	Quit key.Binding
-	New  key.Binding
-	List key.Binding
-	Save key.Binding
-	Back key.Binding
+	Quit   key.Binding
+	New    key.Binding
+	List   key.Binding
+	Save   key.Binding
+	Back   key.Binding
+	Delete key.Binding
+	Rename key.Binding
+	Help   key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.New, k.List, k.Save, k.Back, k.Quit}
+	return []key.Binding{k.New, k.List, k.Save, k.Delete, k.Rename, k.Help, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{k.New, k.List, k.Save},
-		{k.Back, k.Quit},
+		{k.New, k.List, k.Save, k.Delete, k.Rename},
+		{k.Back, k.Help, k.Quit},
 	}
 }
 
@@ -71,6 +70,8 @@ type model struct {
 	noteTextArea           textarea.Model
 	list                   list.Model
 	showingList            bool
+	renameMode             bool
+	renameTarget           string
 }
 
 type item struct {
@@ -89,97 +90,98 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
-	// terminal resize handle
+
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
 		m.list.SetSize(msg.Width-h, msg.Height-v-5)
 
 	case tea.KeyMsg:
 
-		// Global keybindings
 		switch {
-		// Quit Keybind
+
 		case key.Matches(msg, m.keys.Quit):
 			return m, tea.Quit
 
-		// New file Keybind
+		case key.Matches(msg, m.keys.Help):
+			m.help.ShowAll = !m.help.ShowAll
+			return m, nil
+
 		case key.Matches(msg, m.keys.New):
 			m.createFileInputVisible = true
 			m.newFileInput.Focus()
 			return m, nil
-		// Save file keybind
+
 		case key.Matches(msg, m.keys.Save):
 			if m.currentFile == nil {
 				break
 			}
 			if err := m.currentFile.Truncate(0); err != nil {
-				fmt.Println("Cannot save the file :(")
 				return m, nil
 			}
-
 			if _, err := m.currentFile.Seek(0, 0); err != nil {
-				fmt.Println("Cannot save the file :(")
 				return m, nil
 			}
-
 			if _, err := m.currentFile.WriteString(m.noteTextArea.Value()); err != nil {
-				fmt.Println("Cannot save the file :(")
 				return m, nil
 			}
-
-			if err := m.currentFile.Close(); err != nil {
-				fmt.Println("Cannot close the file")
-			}
+			m.currentFile.Close()
 			m.currentFile = nil
 			m.noteTextArea.SetValue("")
 			return m, nil
 
-		// List files keybind
 		case key.Matches(msg, m.keys.List):
-			noteList := listFiles()
-			m.list.SetItems(noteList)
+			m.list.SetItems(listFiles())
 			m.showingList = true
 			return m, nil
 
-		// Go back keybind
 		case key.Matches(msg, m.keys.Back):
-			if m.createFileInputVisible {
-				m.createFileInputVisible = false
-			}
+			m.createFileInputVisible = false
+			m.renameMode = false
+			m.newFileInput.Blur()
+			m.newFileInput.SetValue("")
+			m.showingList = false
+			return m, nil
 
-			if m.currentFile != nil {
-				m.newFileInput.SetValue("")
-				m.currentFile = nil
-			}
-
+		case key.Matches(msg, m.keys.Delete):
 			if m.showingList {
-				if m.list.FilterState() == list.Filtering {
-					break
+				selected, ok := m.list.SelectedItem().(item)
+				if ok {
+					path := filepath.Join(vaultDir, selected.title)
+					if err := os.Remove(path); err == nil {
+						m.list.SetItems(listFiles())
+					}
 				}
-				m.showingList = false
 			}
+			return m, nil
 
+		case key.Matches(msg, m.keys.Rename):
+			if m.showingList {
+				selected, ok := m.list.SelectedItem().(item)
+				if ok {
+					m.renameMode = true
+					m.renameTarget = selected.title
+					m.createFileInputVisible = true
+					m.showingList = false
+					m.newFileInput.SetValue(selected.title)
+					m.newFileInput.Focus()
+				}
+			}
 			return m, nil
 		}
 
-		// Seperate handling for enter key when list is shown
 		if m.showingList {
 			switch msg.String() {
 			case "enter":
-				item, ok := m.list.SelectedItem().(item)
+				selected, ok := m.list.SelectedItem().(item)
 				if ok {
-					filepath := filepath.Join(vaultDir, item.title)
-					content, err := os.ReadFile(filepath)
+					path := filepath.Join(vaultDir, selected.title)
+					content, err := os.ReadFile(path)
 					if err != nil {
-						log.Printf("Error reading file: %v", err)
 						return m, nil
 					}
-
 					m.noteTextArea.SetValue(string(content))
-
-					f, err := os.OpenFile(filepath, os.O_RDWR, 0o644)
+					f, err := os.OpenFile(path, os.O_RDWR, 0o644)
 					if err != nil {
-						log.Printf("Error reading file: %v", err)
 						return m, nil
 					}
 					m.currentFile = f
@@ -189,7 +191,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
-		// Contextual keys (only when input is visible)
 		if m.createFileInputVisible {
 			switch msg.String() {
 
@@ -199,16 +200,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
-				filepath := fmt.Sprintf("%s/%s.md", vaultDir, filename)
+				if m.renameMode {
+					oldPath := filepath.Join(vaultDir, m.renameTarget)
+					newPath := filepath.Join(vaultDir, filename)
 
-				// If file already exists, do nothing
-				if _, err := os.Stat(filepath); err == nil {
+					if _, err := os.Stat(newPath); err == nil {
+						return m, nil
+					}
+
+					if err := os.Rename(oldPath, newPath); err == nil {
+						m.list.SetItems(listFiles())
+					}
+
+					m.renameMode = false
+					m.createFileInputVisible = false
+					m.newFileInput.Blur()
+					m.newFileInput.SetValue("")
+					m.showingList = true
 					return m, nil
 				}
 
-				f, err := os.Create(filepath)
+				path := fmt.Sprintf("%s/%s.md", vaultDir, filename)
+				if _, err := os.Stat(path); err == nil {
+					return m, nil
+				}
+
+				f, err := os.Create(path)
 				if err != nil {
-					// Don't crash the TUI
 					return m, nil
 				}
 
@@ -219,15 +237,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, nil
 
 			case "esc":
+				m.renameMode = false
 				m.createFileInputVisible = false
 				m.newFileInput.Blur()
 				m.newFileInput.SetValue("")
+				m.showingList = true
 				return m, nil
 			}
 		}
 	}
 
-	// Let textinput handle typing when visible
 	if m.createFileInputVisible {
 		m.newFileInput, cmd = m.newFileInput.Update(msg)
 		return m, cmd
@@ -246,15 +265,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m model) View() string {
 	welcome := style.Render("Welcome to Note Maker twin :D")
-	helpView := m.help.View(m.keys)
 	view := ""
+	helpView := m.help.View(m.keys)
+
 	if m.createFileInputVisible {
 		view = m.newFileInput.View()
 	}
 	if m.currentFile != nil {
 		view = m.noteTextArea.View()
 	}
-
 	if m.showingList {
 		view = m.list.View()
 	}
@@ -268,65 +287,47 @@ func initialModel() model {
 		log.Fatal(err)
 	}
 
-	// Keybinds
 	keys := keyMap{
-		New: key.NewBinding(
-			key.WithKeys("ctrl+n"),
-			key.WithHelp("ctrl+n", "new file 🗒"),
-		),
-		Quit: key.NewBinding(
-			key.WithKeys("ctrl+c"),
-			key.WithHelp("ctrl+c", "quit ⏻"),
-		),
-		List: key.NewBinding(
-			key.WithKeys("ctrl+l"),
-			key.WithHelp("ctrl+l", "list files ☰"),
-		),
-		Save: key.NewBinding(
-			key.WithKeys("ctrl+s"),
-			key.WithHelp("ctrl+s", "save ⎙"),
-		),
-		Back: key.NewBinding(
-			key.WithKeys("esc"),
-			key.WithHelp("esc", "back ➜]"),
-		),
+		New:    key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "new file 🗒")),
+		Quit:   key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit ⏻")),
+		List:   key.NewBinding(key.WithKeys("ctrl+l"), key.WithHelp("ctrl+l", "list files ☰")),
+		Save:   key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "save ⎙")),
+		Back:   key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "back ➜]")),
+		Delete: key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "delete ✖")),
+		Rename: key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("ctrl+r", "rename ✎")),
+		Help:   key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "toggle help")),
 	}
 
-	// Init text input
 	ti := textinput.New()
 	ti.Placeholder = "What would you like to name the file"
-	ti.Focus()
 	ti.CharLimit = 156
 	ti.Width = 70
 	ti.Cursor.Style = cursorStyle
 	ti.PromptStyle = cursorLineStyle
 	ti.TextStyle = promptStyle
 
-	// Init text textarea
 	ta := textarea.New()
 	ta.ShowLineNumbers = false
 	ta.Placeholder = "Write your yap here"
 	ta.Focus()
 
-	// list
 	noteList := listFiles()
 	finalList := list.New(noteList, list.NewDefaultDelegate(), 0, 0)
 	finalList.Title = "All Notes"
 
 	return model{
-		keys:                   keys,
-		newFileInput:           ti,
-		createFileInputVisible: false,
-		noteTextArea:           ta,
-		help:                   help.New(),
-		list:                   finalList,
+		keys:         keys,
+		newFileInput: ti,
+		noteTextArea: ta,
+		help:         help.New(),
+		list:         finalList,
 	}
 }
 
 func main() {
 	p := tea.NewProgram(initialModel(), tea.WithAltScreen())
 	if _, err := p.Run(); err != nil {
-		fmt.Printf("Alas, there's been an error: %v", err)
+		fmt.Printf("Error: %v", err)
 		os.Exit(1)
 	}
 }
