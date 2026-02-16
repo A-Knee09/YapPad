@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -27,7 +29,17 @@ type model struct {
 	createFileInputVisible bool
 	currentFile            *os.File
 	noteTextArea           textarea.Model
+	list                   list.Model
+	showingList            bool
 }
+
+type item struct {
+	title, desc string
+}
+
+func (i item) Title() string       { return i.title }
+func (i item) Description() string { return i.desc }
+func (i item) FilterValue() string { return i.title }
 
 func (m model) Init() tea.Cmd {
 	return nil
@@ -37,6 +49,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch msg := msg.(type) {
+	// terminal resize handle
+	case tea.WindowSizeMsg:
+		h, v := docStyle.GetFrameSize()
+		m.list.SetSize(msg.Width-h, msg.Height-v-5)
+
 	case tea.KeyMsg:
 
 		// Global keybindings
@@ -48,6 +65,64 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.createFileInputVisible = true
 			m.newFileInput.Focus()
 			return m, nil
+
+		case key.Matches(msg, m.keys.Save):
+			if m.currentFile == nil {
+				break
+			}
+			if err := m.currentFile.Truncate(0); err != nil {
+				fmt.Println("Cannot save the file :(")
+				return m, nil
+			}
+
+			if _, err := m.currentFile.Seek(0, 0); err != nil {
+				fmt.Println("Cannot save the file :(")
+				return m, nil
+			}
+
+			if _, err := m.currentFile.WriteString(m.noteTextArea.Value()); err != nil {
+				fmt.Println("Cannot save the file :(")
+				return m, nil
+			}
+
+			if err := m.currentFile.Close(); err != nil {
+				fmt.Println("Cannot close the file")
+			}
+			m.currentFile = nil
+			m.noteTextArea.SetValue("")
+			return m, nil
+
+		case key.Matches(msg, m.keys.List):
+			noteList := listFiles()
+			m.list.SetItems(noteList)
+			m.showingList = true
+			return m, nil
+		}
+
+		if m.showingList {
+			switch msg.String() {
+			case "enter":
+				item, ok := m.list.SelectedItem().(item)
+				if ok {
+					filepath := filepath.Join(vaultDir, item.title)
+					content, err := os.ReadFile(filepath)
+					if err != nil {
+						log.Printf("Error reading file: %v", err)
+						return m, nil
+					}
+
+					m.noteTextArea.SetValue(string(content))
+
+					f, err := os.OpenFile(filepath, os.O_RDWR, 0o644)
+					if err != nil {
+						log.Printf("Error reading file: %v", err)
+						return m, nil
+					}
+					m.currentFile = f
+					m.showingList = false
+					return m, nil
+				}
+			}
 		}
 
 		// Contextual keys (only when input is visible)
@@ -98,6 +173,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.noteTextArea, cmd = m.noteTextArea.Update(msg)
 	}
 
+	if m.showingList {
+		m.list, cmd = m.list.Update(msg)
+	}
+
 	return m, nil
 }
 
@@ -110,6 +189,10 @@ func (m model) View() string {
 	}
 	if m.currentFile != nil {
 		view = m.noteTextArea.View()
+	}
+
+	if m.showingList {
+		view = m.list.View()
 	}
 
 	return fmt.Sprintf("\n%s\n\n%s\n\n%s", welcome, view, helpView)
@@ -157,8 +240,14 @@ func initialModel() model {
 
 	// Init text textarea
 	ta := textarea.New()
+	ta.ShowLineNumbers = false
 	ta.Placeholder = "Write your yap here"
 	ta.Focus()
+
+	// list
+	noteList := listFiles()
+	finalList := list.New(noteList, list.NewDefaultDelegate(), 0, 0)
+	finalList.Title = "All Notes"
 
 	return model{
 		keys:                   keys,
@@ -166,6 +255,7 @@ func initialModel() model {
 		createFileInputVisible: false,
 		noteTextArea:           ta,
 		help:                   help.New(),
+		list:                   finalList,
 	}
 }
 
@@ -175,4 +265,28 @@ func main() {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
 	}
+}
+
+func listFiles() []list.Item {
+	items := make([]list.Item, 0)
+	entries, err := os.ReadDir(vaultDir)
+	if err != nil {
+		log.Fatal("Error reading notes")
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			info, err := entry.Info()
+			if err != nil {
+				continue
+			}
+
+			modTime := info.ModTime().Format("2006-01-02 15:04:05")
+			items = append(items, item{
+				title: entry.Name(),
+				desc:  fmt.Sprintf("Modified: %s", modTime),
+			})
+		}
+	}
+	return items
 }

@@ -21,4 +21,5 @@ var (
 			Foreground(lipgloss.Color("141"))
 
 	vaultDir string
+	docStyle = lipgloss.NewStyle().Margin(1, 2)
 )
