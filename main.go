@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log"
@@ -13,8 +15,6 @@ import (
 	"syscall"
 	"time"
 
-	"bytes"
-
 	"github.com/alecthomas/chroma/v2/quick"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -26,6 +26,7 @@ import (
 )
 
 var vaultDir string
+var defaultYapMode yapMode = yapAll
 
 // Editor exec
 
@@ -170,17 +171,19 @@ type keyMap struct {
 	Delete        key.Binding
 	TogglePreview key.Binding
 	CycleSort     key.Binding
+	YapMode       key.Binding
+	TabMode       key.Binding
 	Quit          key.Binding
 }
 
 func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.New, k.Rename, k.Delete, k.Quit}
+	return []key.Binding{k.New, k.YapMode, k.Rename, k.Delete, k.Quit}
 }
 
 func (k keyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.New, k.Rename, k.Delete},
-		{k.TogglePreview, k.CycleSort, k.Quit},
+		{k.YapMode, k.TabMode, k.TogglePreview, k.CycleSort, k.Quit},
 	}
 }
 
@@ -209,6 +212,77 @@ func (s sortMode) String() string {
 	}
 }
 
+// Yap modes (journal types)
+type yapMode int
+
+const (
+	yapAll     yapMode = iota // 0 — show everything
+	yapDaily                  // 1 — default
+	yapWeekly                 // 2
+	yapMonthly                // 3
+	yapYearly                 // 4
+)
+
+func (y yapMode) String() string {
+	switch y {
+	case yapAll:
+		return "All"
+	case yapDaily:
+		return "Daily"
+	case yapWeekly:
+		return "Weekly"
+	case yapMonthly:
+		return "Monthly"
+	case yapYearly:
+		return "Yearly"
+	default:
+		return "Unknown"
+	}
+}
+
+// yapSubdir returns the subdirectory for a yap mode.
+func (y yapMode) subdir() string {
+	switch y {
+	case yapDaily:
+		return "daily"
+	case yapWeekly:
+		return "weekly"
+	case yapMonthly:
+		return "monthly"
+	case yapYearly:
+		return "yearly"
+	default:
+		return ""
+	}
+}
+
+// defaultNoteName returns the default journal filename for the current time.
+func (y yapMode) defaultNoteName() string {
+	now := time.Now()
+	switch y {
+	case yapDaily, yapAll:
+		return now.Format("2006-01-02") + ".md"
+	case yapWeekly:
+		year, week := now.ISOWeek()
+		return fmt.Sprintf("%d-W%02d.md", year, week)
+	case yapMonthly:
+		return now.Format("2006-01") + ".md"
+	case yapYearly:
+		return now.Format("2006") + ".md"
+	default:
+		return now.Format("2006-01-02") + ".md"
+	}
+}
+
+// defaultNoteDir returns the subdirectory for the default note.
+// For yapAll, defaults to daily.
+func (y yapMode) defaultNoteDir() string {
+	if y == yapAll {
+		return "daily"
+	}
+	return y.subdir()
+}
+
 // Model
 
 type model struct {
@@ -228,6 +302,7 @@ type model struct {
 	height       int
 	sortMode     sortMode
 	deleting     bool
+	yapMode      yapMode
 }
 
 // Init
@@ -239,13 +314,19 @@ func initialModel() model {
 		log.Fatal(err)
 	}
 
-	items := listFiles(sortModifiedDesc)
+	// Create journal subdirectories and templates folder
+	for _, sub := range []string{"daily", "weekly", "monthly", "yearly", ".templates"} {
+		os.MkdirAll(filepath.Join(vaultDir, sub), 0o755)
+	}
+
+	defaultMode := defaultYapMode
+	items := listFiles(sortModifiedDesc, defaultMode)
 
 	delegate := list.NewDefaultDelegate()
 	l := list.New(items, delegate, 0, 0)
 
 	ti := textinput.New()
-	ti.Placeholder = "filename (empty for default)"
+	ti.Placeholder = fmt.Sprintf("%s/%s (default)", defaultMode.defaultNoteDir(), defaultMode.defaultNoteName())
 	ti.CharLimit = 128
 	ti.Width = 40
 
@@ -255,6 +336,8 @@ func initialModel() model {
 		Delete:        key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "delete")),
 		TogglePreview: key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "preview")),
 		CycleSort:     key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "sort")),
+		YapMode:       key.NewBinding(key.WithKeys("0", "1", "2", "3", "4"), key.WithHelp("0-4", "yap mode")),
+		TabMode:       key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle mode (input)")),
 		Quit:          key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 	}
 
@@ -263,8 +346,9 @@ func initialModel() model {
 		input:       ti,
 		keys:        keys,
 		help:        help.New(),
-		showPreview: true, // Default to true
+		showPreview: true,
 		sortMode:    sortModifiedDesc,
+		yapMode:     defaultMode,
 	}
 }
 
@@ -324,6 +408,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				i := m.list.SelectedItem().(item)
 				m.selectedFile = i.title
 				path := filepath.Join(vaultDir, i.title)
+				if m.yapMode != yapAll {
+					path = filepath.Join(vaultDir, m.yapMode.subdir(), i.title)
+				}
 				return m, m.loadFileOrImage(path)
 			}
 
@@ -372,7 +459,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				i := m.list.SelectedItem().(item)
 				if i.title != m.selectedFile {
 					m.selectedFile = i.title
-					path := filepath.Join(vaultDir, i.title)
+					path := m.resolveFilePath(i.title)
 					return m, m.loadFileOrImage(path)
 				}
 			}
@@ -392,7 +479,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case fileEditedMsg:
-		m.list.SetItems(listFiles(m.sortMode))
+		m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 		return m, tea.EnableMouseAllMotion
 
 	case tea.KeyMsg:
@@ -401,8 +488,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "y", "Y":
 				if it, ok := m.list.SelectedItem().(item); ok {
-					os.Remove(filepath.Join(vaultDir, it.title))
-					m.list.SetItems(listFiles(m.sortMode))
+					os.Remove(m.resolveFilePath(it.title))
+					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 				}
 				m.deleting = false
 				return m, nil
@@ -420,12 +507,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "enter":
 				name := m.input.Value()
-				if name == "" {
-					name = time.Now().Format("note-20060102-150405")
-				}
 
 				if m.renameMode {
-					oldPath := filepath.Join(vaultDir, m.renameTarget)
+					if name == "" {
+						break
+					}
+					oldPath := m.resolveFilePath(m.renameTarget)
 					newPath := filepath.Join(vaultDir, name)
 
 					if err := os.MkdirAll(filepath.Dir(newPath), 0755); err != nil {
@@ -436,29 +523,89 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.renameMode = false
 					m.inputMode = false
 					m.input.SetValue("")
-					m.list.SetItems(listFiles(m.sortMode))
+					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 					return m, nil
 				}
 
-				path := filepath.Join(vaultDir, name+".md")
-				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-					// Handle error? For now assuming it works or os.Create will fail
+				var path string
+				if name == "" {
+					// Default journal entry — save to the appropriate subdir
+					subdir := m.yapMode.defaultNoteDir()
+					defaultName := m.yapMode.defaultNoteName()
+					path = filepath.Join(vaultDir, subdir, defaultName)
+				} else {
+					// Custom name — save to vault root
+					if !strings.HasSuffix(name, ".md") {
+						name += ".md"
+					}
+					path = filepath.Join(vaultDir, name)
 				}
-				f, _ := os.Create(path)
-				f.Close()
+
+				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+					// Handle error
+				}
+
+				// Create the file only if it doesn't already exist
+				if _, err := os.Stat(path); os.IsNotExist(err) {
+					// Use template if this is a journal entry (empty name)
+					var content []byte
+					if m.input.Value() == "" {
+						tplPath := filepath.Join(vaultDir, ".templates", m.yapMode.defaultNoteDir()+".md")
+						if tplData, err := os.ReadFile(tplPath); err == nil {
+							content = tplData
+						}
+					}
+					os.WriteFile(path, content, 0o644)
+				}
 
 				m.inputMode = false
 				m.input.SetValue("")
 				return m, openInEditor(path)
 
+			case "tab":
+				// Cycle yap mode: daily → weekly → monthly → yearly → daily
+				switch m.yapMode {
+				case yapAll, yapDaily:
+					m.yapMode = yapWeekly
+				case yapWeekly:
+					m.yapMode = yapMonthly
+				case yapMonthly:
+					m.yapMode = yapYearly
+				case yapYearly:
+					m.yapMode = yapDaily
+				}
+				m.input.Placeholder = fmt.Sprintf("%s/%s (default)", m.yapMode.defaultNoteDir(), m.yapMode.defaultNoteName())
+				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+				return m, nil
+
 			case "esc":
 				m.inputMode = false
 				m.renameMode = false
 				m.input.SetValue("")
+				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 				return m, nil
 			}
 
 			m.input, cmd = m.input.Update(msg)
+
+			// Live-filter list based on typed input
+			// Empty = show current mode's files (for default note)
+			// Typing = search ALL files (custom name goes to root)
+			val := m.input.Value()
+			if val != "" {
+				allItems := listFiles(m.sortMode, yapAll)
+				var filtered []list.Item
+				lowerVal := strings.ToLower(val)
+				for _, it := range allItems {
+					if strings.Contains(strings.ToLower(it.(item).title), lowerVal) {
+						filtered = append(filtered, it)
+					}
+				}
+				m.list.SetItems(filtered)
+			} else {
+				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+			}
+
 			return m, cmd
 		}
 
@@ -471,6 +618,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.New):
 			m.inputMode = true
+			m.input.Placeholder = fmt.Sprintf("%s/%s (default)", m.yapMode.defaultNoteDir(), m.yapMode.defaultNoteName())
 			m.input.Focus()
 			return m, nil
 
@@ -492,7 +640,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.CycleSort):
 			m.sortMode = (m.sortMode + 1) % 4
-			m.list.SetItems(listFiles(m.sortMode))
+			m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 			return m, nil
 
 		case key.Matches(msg, m.keys.TogglePreview):
@@ -505,9 +653,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			if it, ok := m.list.SelectedItem().(item); ok {
-				path := filepath.Join(vaultDir, it.title)
+				path := m.resolveFilePath(it.title)
 				return m, openInEditor(path)
 			}
+
+		// Yap mode switching (normal mode, not while filtering)
+		case msg.String() == "0" && m.list.FilterState() != list.Filtering:
+			return m.switchYapMode(yapAll)
+
+		case msg.String() == "1" && m.list.FilterState() != list.Filtering:
+			return m.switchYapMode(yapDaily)
+
+		case msg.String() == "2" && m.list.FilterState() != list.Filtering:
+			return m.switchYapMode(yapWeekly)
+
+		case msg.String() == "3" && m.list.FilterState() != list.Filtering:
+			return m.switchYapMode(yapMonthly)
+
+		case msg.String() == "4" && m.list.FilterState() != list.Filtering:
+			return m.switchYapMode(yapYearly)
 		}
 	}
 
@@ -520,7 +684,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		i := m.list.SelectedItem().(item)
 		if i.title != m.selectedFile {
 			m.selectedFile = i.title
-			cmdRead = m.loadFileOrImage(filepath.Join(vaultDir, i.title))
+			cmdRead = m.loadFileOrImage(m.resolveFilePath(i.title))
 		}
 	}
 
@@ -546,8 +710,9 @@ var statusStyle = lipgloss.NewStyle().
 func (m model) View() string {
 
 	title := titleStyle.Render("YapPad")
+	modeStatus := statusStyle.Render(fmt.Sprintf("Mode: %s", m.yapMode))
 	sortStatus := statusStyle.Render(fmt.Sprintf("Sort: %s", m.sortMode))
-	header := lipgloss.JoinHorizontal(lipgloss.Center, title, sortStatus)
+	header := lipgloss.JoinHorizontal(lipgloss.Center, title, modeStatus, sortStatus)
 
 	if m.deleting {
 		return fmt.Sprintf(
@@ -558,9 +723,10 @@ func (m model) View() string {
 
 	if m.inputMode {
 		return fmt.Sprintf(
-			"\n%s\n\n%s\n",
+			"\n%s\n\n%s\n\n%s",
 			header,
 			m.input.View(),
+			m.list.View(),
 		)
 	}
 
@@ -583,16 +749,50 @@ func (m model) View() string {
 
 // File listing
 
-func listFiles(mode sortMode) []list.Item {
+// switchYapMode changes the yap mode, refreshes the list, and loads the
+// first item's preview (or clears the viewport if the list is empty).
+func (m model) switchYapMode(mode yapMode) (tea.Model, tea.Cmd) {
+	m.yapMode = mode
+	m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+	m.selectedFile = ""
+
+	if m.list.SelectedItem() != nil {
+		i := m.list.SelectedItem().(item)
+		m.selectedFile = i.title
+		return m, m.loadFileOrImage(m.resolveFilePath(i.title))
+	}
+	// No items — clear the preview
+	m.viewport.SetContent("")
+	return m, clearKittyGraphics()
+}
+
+// resolveFilePath resolves the full path for a file given its display title.
+// In yapAll mode, titles include the relative path (e.g. "daily/2026-02-18.md").
+// In specific mode, titles are just filenames within the subdir.
+func (m model) resolveFilePath(title string) string {
+	if m.yapMode == yapAll {
+		return filepath.Join(vaultDir, title)
+	}
+	return filepath.Join(vaultDir, m.yapMode.subdir(), title)
+}
+
+func listFiles(sMode sortMode, yMode yapMode) []list.Item {
 	var items []list.Item
 
-	filepath.WalkDir(vaultDir, func(path string, d fs.DirEntry, err error) error {
+	var searchDir string
+	if yMode == yapAll {
+		searchDir = vaultDir
+	} else {
+		searchDir = filepath.Join(vaultDir, yMode.subdir())
+	}
+
+	filepath.WalkDir(searchDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Skip hidden files/directories (starting with .) but NOT the vault root
-		if d.Name()[0] == '.' && path != vaultDir {
+		// Skip hidden files/directories (starting with .) but NOT the search root
+		if d.Name()[0] == '.' && path != searchDir {
 			if d.IsDir() {
 				return filepath.SkipDir
 			}
@@ -622,10 +822,17 @@ func listFiles(mode sortMode) []list.Item {
 
 		modStr := modTime.Format(time.RFC822)
 
-		relPath, _ := filepath.Rel(vaultDir, path)
+		var displayName string
+		if yMode == yapAll {
+			// Show relative path from vault root (includes subdir prefix)
+			displayName, _ = filepath.Rel(vaultDir, path)
+		} else {
+			// Show just the filename within the subdir
+			displayName = d.Name()
+		}
 
 		items = append(items, item{
-			title:   relPath,
+			title:   displayName,
 			desc:    "Modified: " + modStr,
 			modTime: modTime,
 			creTime: creTime,
@@ -637,7 +844,7 @@ func listFiles(mode sortMode) []list.Item {
 		itemI := items[i].(item)
 		itemJ := items[j].(item)
 
-		switch mode {
+		switch sMode {
 		case sortModifiedDesc:
 			return itemI.modTime.After(itemJ.modTime)
 		case sortModifiedAsc:
@@ -655,8 +862,61 @@ func listFiles(mode sortMode) []list.Item {
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		vaultDir = os.Args[1]
+	modeFlag := flag.String("mode", "all", "")
+
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, `YapPad — a terminal journal & note-taking app
+
+Usage:
+  yap [options] [vault-dir]
+
+Options:
+  --mode <mode>  Set default yap mode (default: all)
+                 Modes: all, daily, weekly, monthly, yearly
+
+Vault Directory:
+  Optional path to the notes directory.
+  Defaults to ~/.YapPad
+
+Keybindings:
+  ctrl+n       Create new note
+  ctrl+r       Rename selected note
+  ctrl+d       Delete selected note
+  ctrl+p       Toggle preview pane
+  ctrl+s       Cycle sort mode
+  ctrl+c       Quit
+
+  0-4          Switch yap mode (0=all, 1=daily, 2=weekly, 3=monthly, 4=yearly)
+  tab          Cycle yap mode while creating a note
+  enter        Open selected note in editor
+  /            Filter notes
+
+Examples:
+  yap                        Open default vault in "all" mode
+  yap --mode daily           Open in daily journal mode
+  yap --mode weekly ~/notes  Open ~/notes in weekly mode
+`)
+	}
+
+	flag.Parse()
+
+	switch strings.ToLower(*modeFlag) {
+	case "all", "0":
+		defaultYapMode = yapAll
+	case "daily", "1":
+		defaultYapMode = yapDaily
+	case "weekly", "2":
+		defaultYapMode = yapWeekly
+	case "monthly", "3":
+		defaultYapMode = yapMonthly
+	case "yearly", "4":
+		defaultYapMode = yapYearly
+	default:
+		log.Fatalf("unknown mode: %s (use all, daily, weekly, monthly, yearly)", *modeFlag)
+	}
+
+	if flag.NArg() > 0 {
+		vaultDir = flag.Arg(0)
 	} else {
 		home, err := os.UserHomeDir()
 		if err != nil {
