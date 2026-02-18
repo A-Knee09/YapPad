@@ -2,10 +2,10 @@
 
 build:
 	mkdir -p build/
-	go build -o build/yap main.go
+	go build -o build/yap .
 
 run:
-	go run main.go
+	go run .
 
 install: build
 	mkdir -p ~/.local/bin
