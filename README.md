@@ -1,11 +1,16 @@
 # YapPad
 A simple terminal-based note-taking app built with Go and Bubble Tea.
 
-> Built while learning from this YouTube [tutorial](https://youtu.be/pySTZsbaJ0Q?si=5NaxazX5_7UUf19h) to explore TUI development with Bubble Tea.
+> Built while learning from this YouTube [tutorial](https://youtu.be/pySTZsbaJ0Q?si=5NaxazX5_7UUf19h) to explore TUI development with  [BubbleTea](https://github.com/charmbracelet/bubbletea)
 
+
+
+
+https://github.com/user-attachments/assets/c78a4354-1ea3-4bf6-bd5c-d892e85b04e3
+> Current with text and image preview and other features
 
 https://github.com/user-attachments/assets/89aab783-6baf-4028-a88a-b437518bd481
-
+> This one was the base version made using the tutorial
 
 ## Requirements
 - Go 1.21+ (recommended)
