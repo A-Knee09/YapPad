@@ -5,13 +5,13 @@
 *.dll
 *.so
 *.dylib
-
+/yap-pad
+/yap
 # Go build artifacts
 *.test
 *.out
 coverage.out
 
-# Dependency directories (only if you ever vendor)
 /vendor/
 
 # IDE / Editor
