@@ -22,8 +22,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 
 		var listWidth, viewportWidth int
+
 		if m.showPreview {
-			listWidth = msg.Width / 3
+			listWidth = msg.Width / 2
 			viewportWidth = msg.Width - listWidth - 4
 		} else {
 			listWidth = msg.Width - 2
@@ -142,7 +143,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					oldPath := m.resolveFilePath(m.renameTarget)
 					newPath := filepath.Join(vaultDir, name)
 
-					if err := os.MkdirAll(filepath.Dir(newPath), 0755); err != nil {
+					if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
 						// handle error or ignore
 					}
 					os.Rename(oldPath, newPath)
@@ -166,7 +167,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					path = filepath.Join(vaultDir, name)
 				}
 
-				if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 					// Handle error
 				}
 
@@ -266,6 +267,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.TogglePreview):
 			m.showPreview = !m.showPreview
 			return m.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+
+		case key.Matches(msg, m.keys.ToggleHelpMenu):
+			m.list.SetShowHelp(!m.list.ShowHelp())
+
+			if m.list.ShowHelp() {
+				m.list.Help.Width = m.width // Use full width for help
+			} else {
+				m.list.Help.Width = m.width / 3 // Back to list width
+			}
+			return m, nil
 
 		case msg.String() == "enter":
 			if m.list.FilterState() == list.Filtering {

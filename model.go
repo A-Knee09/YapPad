@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -18,8 +17,7 @@ type model struct {
 	list         list.Model
 	input        textinput.Model
 	viewport     viewport.Model
-	keys         keyMap
-	help         help.Model
+	keys         *keyMap
 	inputMode    bool
 	renameMode   bool
 	renameTarget string
@@ -37,6 +35,8 @@ type model struct {
 func (m model) Init() tea.Cmd { return nil }
 
 func initialModel() model {
+	listKeys := newListKeyMap()
+
 	if err := os.MkdirAll(vaultDir, 0o755); err != nil {
 		log.Fatal(err)
 	}
@@ -49,29 +49,33 @@ func initialModel() model {
 	items := listFiles(sortModifiedDesc, defaultMode)
 
 	delegate := list.NewDefaultDelegate()
+	delegate.Styles = listItemStyles
 	l := list.New(items, delegate, 0, 0)
+	l.SetShowTitle(false)
+	l.AdditionalFullHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			listKeys.New,
+			listKeys.Rename,
+			listKeys.Delete,
+			listKeys.TogglePreview,
+
+			listKeys.ToggleHelpMenu,
+			listKeys.CycleSort,
+			listKeys.YapMode,
+			listKeys.Quit,
+		}
+	}
 
 	ti := textinput.New()
 	ti.Placeholder = fmt.Sprintf("%s/%s (default)", defaultMode.defaultNoteDir(), defaultMode.defaultNoteName())
 	ti.CharLimit = 128
 	ti.Width = 40
 
-	keys := keyMap{
-		New:           key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "new")),
-		Rename:        key.NewBinding(key.WithKeys("ctrl+r"), key.WithHelp("ctrl+r", "rename")),
-		Delete:        key.NewBinding(key.WithKeys("ctrl+d"), key.WithHelp("ctrl+d", "delete")),
-		TogglePreview: key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "preview")),
-		CycleSort:     key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "sort")),
-		YapMode:       key.NewBinding(key.WithKeys("0", "1", "2", "3", "4"), key.WithHelp("0-4", "yap mode")),
-		TabMode:       key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle mode (input)")),
-		Quit:          key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
-	}
-
 	return model{
-		list:        l,
-		input:       ti,
-		keys:        keys,
-		help:        help.New(),
+		list:  l,
+		input: ti,
+		keys:  listKeys,
+		// help:        help.New(),
 		showPreview: true,
 		sortMode:    sortModifiedDesc,
 		yapMode:     defaultMode,
