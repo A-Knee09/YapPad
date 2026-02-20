@@ -51,7 +51,8 @@ func initialModel() model {
 	delegate := list.NewDefaultDelegate()
 	delegate.Styles = listItemStyles
 	l := list.New(items, delegate, 0, 0)
-	l.SetShowTitle(false)
+	l.Title = "All Yaps Here"
+	l.SetShowTitle(true)
 	l.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			listKeys.New,

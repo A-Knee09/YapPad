@@ -11,7 +11,7 @@ var titleStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("230")).
 	Background(lipgloss.Color("62")).
-	Padding(0, 1)
+	Padding(0, 1).MarginLeft(2)
 
 var statusStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("241")).

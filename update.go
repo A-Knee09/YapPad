@@ -96,9 +96,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Scroll Viewport
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
-				m.viewport.LineUp(1)
+				m.viewport.ScrollUp(1)
 			case tea.MouseButtonWheelDown:
-				m.viewport.LineDown(1)
+				m.viewport.ScrollDown(1)
 			}
 			var cmdViewport tea.Cmd
 			m.viewport, cmdViewport = m.viewport.Update(msg)
@@ -118,6 +118,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if it, ok := m.list.SelectedItem().(item); ok {
 					os.Remove(m.resolveFilePath(it.title))
 					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+					statusCmd := m.list.NewStatusMessage("Deleted " + it.title)
+					m.deleting = false
+					return m, statusCmd
 				}
 				m.deleting = false
 				return m, nil
