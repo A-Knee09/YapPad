@@ -3,7 +3,8 @@ A simple terminal-based note-taking app built with Go and Bubble Tea.
 
 > Built while learning from this YouTube [tutorial](https://youtu.be/pySTZsbaJ0Q?si=5NaxazX5_7UUf19h) to explore TUI development with  [BubbleTea](https://github.com/charmbracelet/bubbletea)
 
-
+>[!CAUTION]
+>Still in development, Issues will be fixed
 
 
 https://github.com/user-attachments/assets/c78a4354-1ea3-4bf6-bd5c-d892e85b04e3
