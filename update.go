@@ -31,6 +31,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			viewportWidth = 0
 		}
 
+		m.viewport.Width = viewportWidth
+		m.viewport.Height = msg.Height - 6
+
 		m.list.SetSize(listWidth, msg.Height-6)
 
 		if !m.ready {

@@ -73,10 +73,10 @@ func initialModel() model {
 	ti.Width = 40
 
 	return model{
-		list:  l,
-		input: ti,
-		keys:  listKeys,
-		// help:        help.New(),
+		list:        l,
+		input:       ti,
+		keys:        listKeys,
+		viewport:    viewport.New(0, 0),
 		showPreview: true,
 		sortMode:    sortModifiedDesc,
 		yapMode:     defaultMode,
