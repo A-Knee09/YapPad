@@ -109,6 +109,7 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 func (m model) switchYapMode(mode yapMode) (tea.Model, tea.Cmd) {
 	m.yapMode = mode
 	m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+	m.list.Title = m.yapMode.String() + " Yaps"
 	m.selectedFile = ""
 
 	if m.list.SelectedItem() != nil {

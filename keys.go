@@ -14,16 +14,6 @@ type keyMap struct {
 	ToggleHelpMenu key.Binding
 }
 
-//	func (k keyMap) ShortHelp() []key.Binding {
-//		return []key.Binding{k.New, k.YapMode, k.Rename, k.Delete, k.Quit}
-//	}
-//
-//	func (k keyMap) FullHelp() [][]key.Binding {
-//		return [][]key.Binding{
-//			{k.New, k.Rename, k.Delete},
-//			{k.YapMode, k.TabMode, k.TogglePreview, k.CycleSort, k.Quit},
-//		}
-//	}
 func newListKeyMap() *keyMap {
 	return &keyMap{
 		New:            key.NewBinding(key.WithKeys("ctrl+n"), key.WithHelp("ctrl+n", "new")),
