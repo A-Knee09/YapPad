@@ -41,10 +41,6 @@ func initialModel() model {
 		log.Fatal(err)
 	}
 
-	for _, sub := range []string{"daily", "weekly", "monthly", "yearly", ".templates"} {
-		os.MkdirAll(filepath.Join(vaultDir, sub), 0o755)
-	}
-
 	defaultMode := defaultYapMode
 	items := listFiles(sortModifiedDesc, defaultMode)
 
