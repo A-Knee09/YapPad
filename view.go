@@ -7,6 +7,13 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+var viewportStyle = lipgloss.NewStyle().
+	BorderStyle(lipgloss.NormalBorder()).
+	BorderForeground(lipgloss.Color("237"))
+
+	// Padding(0, 2).
+	// Margin(0, 10)
+
 var titleStyle = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("230")).
@@ -82,7 +89,12 @@ func (m model) View() string {
 		return fmt.Sprintf(
 			"\n%s\n\n%s",
 			header,
-			lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), "  ", m.viewport.View()),
+			lipgloss.JoinHorizontal(
+				lipgloss.Top,
+				m.list.View(),
+				"  ",
+				viewportStyle.Render(m.viewport.View()),
+			),
 			// m.help.View(m.keys),
 		)
 	}

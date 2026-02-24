@@ -21,6 +21,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
+		const minWidthForPreview = 80
+
+		if msg.Width < minWidthForPreview {
+			m.showPreview = false
+		} else {
+			m.showPreview = true
+		}
+
 		var listWidth, viewportWidth int
 
 		if m.showPreview {
