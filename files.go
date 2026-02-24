@@ -50,7 +50,7 @@ func clearKittyGraphics() tea.Cmd {
 
 // renderImage uses chafa to generate a Kitty image escape sequence, then
 // writes it directly to stdout at a specific cell offset. The output is
-// *captured* first to prevent chafa's own cursor movements from wrecking
+// captured first to prevent chafa's own cursor movements from wrecking
 // the Bubble Tea TUI.
 func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
 	return func() tea.Msg {
@@ -203,6 +203,10 @@ func listFiles(sMode sortMode, yMode yapMode) []list.Item {
 			return itemI.creTime.After(itemJ.creTime)
 		case sortCreatedAsc:
 			return itemI.creTime.Before(itemJ.creTime)
+		case sortNameDesc:
+			return strings.ToLower(itemI.title) > strings.ToLower(itemJ.title)
+		case sortNameAsc:
+			return strings.ToLower(itemI.title) < strings.ToLower(itemJ.title)
 		default:
 			return itemI.modTime.After(itemJ.modTime)
 		}

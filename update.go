@@ -266,7 +266,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.CycleSort):
-			m.sortMode = (m.sortMode + 1) % 4
+			m.sortMode = (m.sortMode + 1) % 6
 			m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 			return m, nil
 

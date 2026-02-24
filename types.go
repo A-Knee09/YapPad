@@ -43,6 +43,8 @@ const (
 	sortModifiedAsc
 	sortCreatedDesc
 	sortCreatedAsc
+	sortNameDesc
+	sortNameAsc
 )
 
 func (s sortMode) String() string {
@@ -55,6 +57,10 @@ func (s sortMode) String() string {
 		return "Created (Newest)"
 	case sortCreatedAsc:
 		return "Created (Oldest)"
+	case sortNameDesc:
+		return "Alphabetic (Descending)"
+	case sortNameAsc:
+		return "Alphabetic (Ascending)"
 	default:
 		return "Unknown"
 	}
