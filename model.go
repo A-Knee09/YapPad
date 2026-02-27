@@ -83,10 +83,17 @@ func initialModel() model {
 // to the appropriate handler.
 func (m model) loadFileOrImage(path string) tea.Cmd {
 	if isImageFile(path) {
-		xOffset := m.width/3 + 3
-		yOffset := 4
-		cols := m.viewport.Width
-		rows := m.viewport.Height
+		// Account for: left panel width + separator + border
+		listWidth := m.width / 2
+		xOffset := listWidth + 3 + 1
+
+		// Account for: header height + border
+		yOffset := 4 + 1
+
+		// Shrink cols/rows to fit inside the border
+		cols := m.viewport.Width - 2
+		rows := m.viewport.Height - 2
+
 		return tea.Sequence(
 			clearKittyGraphics(),
 			func() tea.Msg { return clearViewportMsg{} },

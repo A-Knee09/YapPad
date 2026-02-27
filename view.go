@@ -86,23 +86,22 @@ func (m model) View() string {
 	}
 
 	if m.showPreview {
+		var previewView string
+		if m.showingImage {
+			previewView = m.viewport.View()
+		} else {
+			previewView = viewportStyle.Render(m.viewport.View())
+		}
+
 		return fmt.Sprintf(
 			"\n%s\n\n%s",
 			header,
-			lipgloss.JoinHorizontal(
-				lipgloss.Top,
-				m.list.View(),
-				"  ",
-				viewportStyle.Render(m.viewport.View()),
-			),
-			// m.help.View(m.keys),
+			lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), "  ", previewView),
 		)
 	}
-
 	return fmt.Sprintf(
 		"\n%s\n\n%s",
 		header,
 		m.list.View(),
-		// m.help.View(m.keys),
 	)
 }
