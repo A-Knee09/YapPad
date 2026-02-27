@@ -11,8 +11,10 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var vaultDir string
-var defaultYapMode yapMode = yapAll
+var (
+	vaultDir       string
+	defaultYapMode yapMode = yapAll
+)
 
 func main() {
 	modeFlag := flag.String("mode", "all", "")
@@ -37,7 +39,6 @@ Keybindings:
   ctrl+d       Delete selected note
   ctrl+p       Toggle preview pane
   ctrl+s       Cycle sort mode
-  ctrl+c       Quit
 
   0-4          Switch yap mode (0=all, 1=daily, 2=weekly, 3=monthly, 4=yearly)
   tab          Cycle yap mode while creating a note

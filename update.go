@@ -297,9 +297,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// NORMAL MODE
 		switch {
 
-		case key.Matches(msg, m.keys.Quit):
-			return m, tea.Sequence(clearKittyGraphics(), tea.Quit)
-
 		case key.Matches(msg, m.keys.New):
 			m.inputMode = true
 			m.input.Placeholder = fmt.Sprintf("%s/%s (default)", m.yapMode.defaultNoteDir(), m.yapMode.defaultNoteName())

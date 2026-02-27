@@ -10,7 +10,6 @@ type keyMap struct {
 	CycleSort      key.Binding
 	YapMode        key.Binding
 	TabMode        key.Binding
-	Quit           key.Binding
 	ToggleHelpMenu key.Binding
 }
 
@@ -24,6 +23,5 @@ func newListKeyMap() *keyMap {
 		YapMode:        key.NewBinding(key.WithKeys("0", "1", "2", "3", "4"), key.WithHelp("0-4", "yap mode")),
 		TabMode:        key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "cycle mode (input)")),
 		ToggleHelpMenu: key.NewBinding(key.WithKeys("ctrl+h"), key.WithHelp("ctrl+h", "Toggle Help")),
-		Quit:           key.NewBinding(key.WithKeys("ctrl+c"), key.WithHelp("ctrl+c", "quit")),
 	}
 }

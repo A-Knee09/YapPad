@@ -61,7 +61,6 @@ func initialModel() model {
 			listKeys.ToggleHelpMenu,
 			listKeys.CycleSort,
 			listKeys.YapMode,
-			listKeys.Quit,
 		}
 	}
 
