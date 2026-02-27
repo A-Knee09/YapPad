@@ -16,6 +16,8 @@ import (
 type model struct {
 	list         list.Model
 	input        textinput.Model
+	descInput    textinput.Model
+	inputStep    int
 	viewport     viewport.Model
 	keys         *keyMap
 	inputMode    bool
@@ -68,9 +70,15 @@ func initialModel() model {
 	ti.CharLimit = 128
 	ti.Width = 40
 
+	di := textinput.New()
+	di.Placeholder = "Description (optional, press enter to skip)"
+	di.CharLimit = 128
+	di.Width = 40
+
 	return model{
 		list:        l,
 		input:       ti,
+		descInput:   di,
 		keys:        listKeys,
 		viewport:    viewport.New(0, 0),
 		showPreview: true,

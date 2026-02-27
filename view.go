@@ -77,11 +77,19 @@ func (m model) View() string {
 	}
 
 	if m.inputMode {
+		if m.inputStep == 0 {
+			return fmt.Sprintf(
+				"\n%s\n\n%s\n\n%s",
+				header,
+				m.input.View(),
+				m.list.View(),
+			)
+		}
 		return fmt.Sprintf(
-			"\n%s\n\n%s\n\n%s",
+			"\n%s\n\nFilename: %s\nDescription: %s",
 			header,
-			m.input.View(),
-			m.list.View(),
+			m.input.Value(),
+			m.descInput.View(),
 		)
 	}
 

@@ -126,6 +126,50 @@ func openInEditor(path string) tea.Cmd {
 	})
 }
 
+// NOTE: Made for adding description to an item
+func writeMetaDesc(filePath, desc string) error {
+	if desc == "" {
+		return nil
+	}
+	metaDir := filepath.Join(vaultDir, ".metadesc")
+	if err := os.MkdirAll(metaDir, 0o755); err != nil {
+		return err
+	}
+	rel, err := filepath.Rel(vaultDir, filePath)
+	if err != nil {
+		rel = filepath.Base(filePath)
+	}
+	key := strings.ReplaceAll(rel, string(filepath.Separator), "__")
+	metaPath := filepath.Join(metaDir, key+".meta")
+	return os.WriteFile(metaPath, []byte(desc), 0o644)
+}
+
+func readMetaDesc(filePath string) string {
+	metaDir := filepath.Join(vaultDir, ".metadesc")
+	rel, err := filepath.Rel(vaultDir, filePath)
+	if err != nil {
+		rel = filepath.Base(filePath)
+	}
+	key := strings.ReplaceAll(rel, string(filepath.Separator), "__")
+	metaPath := filepath.Join(metaDir, key+".meta")
+	data, err := os.ReadFile(metaPath)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
+}
+
+func deleteMetaDesc(filePath string) {
+	metaDir := filepath.Join(vaultDir, ".metadesc")
+	rel, err := filepath.Rel(vaultDir, filePath)
+	if err != nil {
+		rel = filepath.Base(filePath)
+	}
+	key := strings.ReplaceAll(rel, string(filepath.Separator), "__")
+	metaPath := filepath.Join(metaDir, key+".meta")
+	os.Remove(metaPath)
+}
+
 func listFiles(sMode sortMode, yMode yapMode) []list.Item {
 	var items []list.Item
 
@@ -172,6 +216,14 @@ func listFiles(sMode sortMode, yMode yapMode) []list.Item {
 
 		modStr := modTime.Format(time.RFC822)
 
+		customDesc := readMetaDesc(path)
+		var desc string
+		if customDesc != "" {
+			desc = customDesc
+		} else {
+			desc = "Modified: " + modStr
+		}
+
 		var displayName string
 		if yMode == yapAll {
 			// Show relative path from vault root (includes subdir prefix)
@@ -182,8 +234,9 @@ func listFiles(sMode sortMode, yMode yapMode) []list.Item {
 		}
 
 		items = append(items, item{
-			title:   displayName,
-			desc:    "Modified: " + modStr,
+			title: displayName,
+			desc:  desc,
+			// desc:    "Modified: " + modStr,
 			modTime: modTime,
 			creTime: creTime,
 		})

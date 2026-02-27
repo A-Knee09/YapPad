@@ -148,26 +148,64 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 
 			case "enter":
-				name := m.input.Value()
-
 				if m.renameMode {
-					if name == "" {
-						break
+					if m.inputStep == 0 {
+						name := m.input.Value()
+						if name == "" {
+							break
+						}
+						m.inputStep = 1
+						m.descInput.Placeholder = "New description (optional, enter to skip)"
+						m.input.Blur()
+						m.descInput.Focus()
+						return m, nil
 					}
+
+					// rename + update desc
+					name := m.input.Value()
+					desc := m.descInput.Value()
+
 					oldPath := m.resolveFilePath(m.renameTarget)
+					if !strings.HasSuffix(name, ".md") {
+						name += ".md"
+					}
 					newPath := filepath.Join(vaultDir, name)
 
+					oldDesc := readMetaDesc(oldPath)
+					finalDesc := desc
+					if finalDesc == "" {
+						finalDesc = oldDesc
+					}
+
 					if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
-						// handle error or ignore
 					}
 					os.Rename(oldPath, newPath)
+					deleteMetaDesc(oldPath)
+					writeMetaDesc(newPath, finalDesc)
 
 					m.renameMode = false
 					m.inputMode = false
+					m.inputStep = 0
 					m.input.SetValue("")
+					m.descInput.SetValue("")
+					m.input.Focus()
 					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 					return m, nil
 				}
+
+				// NEW FILE
+				if m.inputStep == 0 {
+					m.inputStep = 1
+					m.input.Blur()
+					m.descInput.SetValue("")
+					m.descInput.Placeholder = "Description (optional, press enter to skip)"
+					m.descInput.Focus()
+					return m, nil
+				}
+
+				// create the file
+				name := m.input.Value()
+				desc := m.descInput.Value()
 
 				var path string
 				if name == "" {
@@ -182,10 +220,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 
 				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-					// Handle error
 				}
 
-				// Create the file only if it doesn't already exist
 				if _, err := os.Stat(path); os.IsNotExist(err) {
 					var content []byte
 					if m.input.Value() == "" {
@@ -197,54 +233,67 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					os.WriteFile(path, content, 0o644)
 				}
 
-				m.inputMode = false
-				m.input.SetValue("")
-				return m, openInEditor(path)
+				writeMetaDesc(path, desc)
 
-			case "tab":
-				switch m.yapMode {
-				case yapAll, yapDaily:
-					m.yapMode = yapWeekly
-				case yapWeekly:
-					m.yapMode = yapMonthly
-				case yapMonthly:
-					m.yapMode = yapYearly
-				case yapYearly:
-					m.yapMode = yapDaily
-				}
-				m.input.Placeholder = fmt.Sprintf("%s/%s (default)", m.yapMode.defaultNoteDir(), m.yapMode.defaultNoteName())
-				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
-				return m, nil
+				m.inputMode = false
+				m.inputStep = 0
+				m.input.SetValue("")
+				m.descInput.SetValue("")
+				m.input.Focus()
+				return m, openInEditor(path)
 
 			case "esc":
 				m.inputMode = false
 				m.renameMode = false
+				m.inputStep = 0
 				m.input.SetValue("")
+				m.descInput.SetValue("")
+				m.input.Focus()
 				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+				return m, nil
+
+			case "tab":
+				if m.inputStep == 0 {
+					switch m.yapMode {
+					case yapAll, yapDaily:
+						m.yapMode = yapWeekly
+					case yapWeekly:
+						m.yapMode = yapMonthly
+					case yapMonthly:
+						m.yapMode = yapYearly
+					case yapYearly:
+						m.yapMode = yapDaily
+					}
+					m.input.Placeholder = fmt.Sprintf("%s/%s (default)", m.yapMode.defaultNoteDir(), m.yapMode.defaultNoteName())
+					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+				}
 				return m, nil
 			}
 
-			m.input, cmd = m.input.Update(msg)
+			if m.inputStep == 0 {
+				m.input, cmd = m.input.Update(msg)
 
-			// Live-filter list based on typed input
-			val := m.input.Value()
-			if val != "" {
-				allItems := listFiles(m.sortMode, yapAll)
-				var filtered []list.Item
-				lowerVal := strings.ToLower(val)
-				for _, it := range allItems {
-					if strings.Contains(strings.ToLower(it.(item).title), lowerVal) {
-						filtered = append(filtered, it)
+				// Live-filter list based on typed input
+				val := m.input.Value()
+				if val != "" {
+					allItems := listFiles(m.sortMode, yapAll)
+					var filtered []list.Item
+					lowerVal := strings.ToLower(val)
+					for _, it := range allItems {
+						if strings.Contains(strings.ToLower(it.(item).title), lowerVal) {
+							filtered = append(filtered, it)
+						}
 					}
+					m.list.SetItems(filtered)
+				} else {
+					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 				}
-				m.list.SetItems(filtered)
 			} else {
-				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+				m.descInput, cmd = m.descInput.Update(msg)
 			}
 
 			return m, cmd
 		}
-
 		// NORMAL MODE
 		switch {
 
@@ -268,8 +317,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.renameMode = true
 				m.renameTarget = it.title
 				m.inputMode = true
+				m.inputStep = 0
 				m.input.SetValue(it.title)
 				m.input.Focus()
+				// Pre-fill existing description
+				existingDesc := readMetaDesc(m.resolveFilePath(it.title))
+				m.descInput.SetValue(existingDesc)
 			}
 			return m, nil
 
