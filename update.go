@@ -25,7 +25,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if msg.Width < minWidthForPreview {
 			m.showPreview = false
-		} else {
+		} else if !m.manualHidePreview {
 			m.showPreview = true
 		}
 
@@ -330,6 +330,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.TogglePreview):
 			m.showPreview = !m.showPreview
+			m.manualHidePreview = !m.showPreview
 			return m.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 
 		case key.Matches(msg, m.keys.ToggleHelpMenu):

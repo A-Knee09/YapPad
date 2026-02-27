@@ -14,24 +14,25 @@ import (
 )
 
 type model struct {
-	list         list.Model
-	input        textinput.Model
-	descInput    textinput.Model
-	inputStep    int
-	viewport     viewport.Model
-	keys         *keyMap
-	inputMode    bool
-	renameMode   bool
-	renameTarget string
-	ready        bool
-	selectedFile string
-	showPreview  bool
-	showingImage bool
-	width        int
-	height       int
-	sortMode     sortMode
-	deleting     bool
-	yapMode      yapMode
+	list              list.Model
+	input             textinput.Model
+	descInput         textinput.Model
+	inputStep         int
+	viewport          viewport.Model
+	keys              *keyMap
+	inputMode         bool
+	renameMode        bool
+	renameTarget      string
+	ready             bool
+	selectedFile      string
+	showPreview       bool
+	manualHidePreview bool
+	showingImage      bool
+	width             int
+	height            int
+	sortMode          sortMode
+	deleting          bool
+	yapMode           yapMode
 }
 
 func (m model) Init() tea.Cmd { return nil }
