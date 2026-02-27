@@ -46,16 +46,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if !m.ready {
 			m.viewport = viewport.New(viewportWidth, msg.Height-6)
-			m.viewport.HighPerformanceRendering = false
 			m.ready = true
-
-			// Initial load if something is selected
 			if m.list.SelectedItem() != nil {
 				i := m.list.SelectedItem().(item)
 				m.selectedFile = i.title
-				return m, m.loadFileOrImage(m.resolveFilePath(i.title))
+				if m.showPreview {
+					return m, m.loadFileOrImage(m.resolveFilePath(i.title))
+				}
 			}
-
 		} else {
 			m.viewport.Width = viewportWidth
 			m.viewport.Height = msg.Height - 6
@@ -127,7 +125,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "y", "Y":
 				if it, ok := m.list.SelectedItem().(item); ok {
-					os.Remove(m.resolveFilePath(it.title))
+					path := m.resolveFilePath(it.title)
+					os.Remove(path)
+					deleteMetaDesc(path)
 					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 					statusCmd := m.list.NewStatusMessage("Deleted " + it.title)
 					m.deleting = false
@@ -331,17 +331,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, m.keys.TogglePreview):
 			m.showPreview = !m.showPreview
 			m.manualHidePreview = !m.showPreview
-			return m.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 
-		case key.Matches(msg, m.keys.ToggleHelpMenu):
-			m.list.SetShowHelp(!m.list.ShowHelp())
+			newM, resizeCmd := m.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
+			m = newM.(model)
 
-			if m.list.ShowHelp() {
-				m.list.Help.Width = m.width // Use full width for help
-			} else {
-				m.list.Help.Width = m.width / 3 // Back to list width
+			if !m.showPreview {
+				m.showingImage = false
+				return m, tea.Batch(resizeCmd, clearKittyGraphics())
 			}
-			return m, nil
+
+			if m.selectedFile != "" {
+				if isImageFile(m.resolveFilePath(m.selectedFile)) {
+					m.showingImage = true
+				}
+				return m, tea.Batch(resizeCmd, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+			}
+
+			return m, resizeCmd
 
 		case msg.String() == "enter":
 			if m.list.FilterState() == list.Filtering {
@@ -377,10 +383,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		i := m.list.SelectedItem().(item)
 		if i.title != m.selectedFile {
 			m.selectedFile = i.title
-			cmdRead = m.loadFileOrImage(m.resolveFilePath(i.title))
+			if m.showPreview {
+				cmdRead = m.loadFileOrImage(m.resolveFilePath(i.title))
+			}
 		}
 	}
-
 	var cmdViewport tea.Cmd
 	m.viewport, cmdViewport = m.viewport.Update(msg)
 
