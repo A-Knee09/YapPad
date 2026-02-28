@@ -328,6 +328,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 			return m, nil
 
+		case key.Matches(msg, m.keys.ToggleHelpMenu):
+			m.list.SetShowHelp(!m.list.ShowHelp())
+			return m, nil
+
 		case key.Matches(msg, m.keys.TogglePreview):
 			m.showPreview = !m.showPreview
 			m.manualHidePreview = !m.showPreview
