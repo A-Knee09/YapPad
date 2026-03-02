@@ -21,7 +21,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-		const minWidthForPreview = 80
+		var clearCmd tea.Cmd
+		if m.showingImage {
+			m.showingImage = false
+			clearCmd = clearKittyGraphics()
+		}
+
+		//  NOTE: Hard coded for now I'll need a better approach
+		const minWidthForPreview = 108
 
 		if msg.Width < minWidthForPreview {
 			m.showPreview = false
@@ -33,32 +40,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		if m.showPreview {
 			listWidth = msg.Width / 2
-			viewportWidth = msg.Width - listWidth - 4
+			viewportWidth = msg.Width - listWidth - 4 - 2
 		} else {
 			listWidth = msg.Width - 2
 			viewportWidth = 0
 		}
 
 		m.viewport.Width = viewportWidth
-		m.viewport.Height = msg.Height - 6
+		m.viewport.Height = msg.Height - 7
 
-		m.list.SetSize(listWidth, msg.Height-6)
+		m.list.SetSize(listWidth, msg.Height-5)
 
+		//  HACK: Not the best way, will fix later
 		if !m.ready {
-			m.viewport = viewport.New(viewportWidth, msg.Height-6)
+			m.viewport = viewport.New(viewportWidth, msg.Height-7)
 			m.ready = true
 			if m.list.SelectedItem() != nil {
 				i := m.list.SelectedItem().(item)
 				m.selectedFile = i.title
 				if m.showPreview {
-					return m, m.loadFileOrImage(m.resolveFilePath(i.title))
+					return m, tea.Batch(clearCmd, m.loadFileOrImage(m.resolveFilePath(i.title)))
 				}
 			}
 		} else {
 			m.viewport.Width = viewportWidth
-			m.viewport.Height = msg.Height - 6
+			m.viewport.Height = msg.Height - 7
+			if m.showPreview && m.selectedFile == "" {
+				if m.list.SelectedItem() != nil {
+					i := m.list.SelectedItem().(item)
+					m.selectedFile = i.title
+					if isImageFile(m.resolveFilePath(i.title)) {
+						m.showingImage = true
+					}
+					return m, tea.Batch(clearCmd, m.loadFileOrImage(m.resolveFilePath(i.title)))
+				}
+			} else if m.showPreview && m.selectedFile != "" {
+				if isImageFile(m.resolveFilePath(m.selectedFile)) {
+					m.showingImage = true
+				}
+				return m, tea.Batch(clearCmd, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+			}
 		}
-
+		return m, clearCmd
 	case fileLoadedMsg:
 		m.showingImage = false
 		m.viewport.SetContent(msg.content)

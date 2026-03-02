@@ -52,6 +52,7 @@ func initialModel() model {
 	l := list.New(items, delegate, 0, 0)
 	l.Title = "All Yaps Here"
 	l.SetShowTitle(true)
+
 	l.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			listKeys.New,
@@ -93,7 +94,7 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 	if isImageFile(path) {
 		// Account for: left panel width + separator + border
 		listWidth := m.width / 2
-		xOffset := listWidth + 3 + 1
+		xOffset := listWidth + 4 + 1
 
 		// Account for: header height + border
 		yOffset := 4 + 1

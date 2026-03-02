@@ -9,10 +9,8 @@ import (
 
 var viewportStyle = lipgloss.NewStyle().
 	BorderStyle(lipgloss.NormalBorder()).
-	BorderForeground(lipgloss.Color("237"))
-
-	// Padding(0, 2).
-	// Margin(0, 10)
+	BorderForeground(lipgloss.Color("237")).
+	MarginLeft(8)
 
 var titleStyle = lipgloss.NewStyle().
 	Bold(true).
