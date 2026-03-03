@@ -143,6 +143,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fileEditedMsg:
 		m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+		if m.selectedFile != "" && m.showPreview {
+			return m, tea.Batch(tea.EnableMouseAllMotion, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+		}
 		return m, tea.EnableMouseAllMotion
 
 	case tea.KeyMsg:
@@ -209,6 +212,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					deleteMetaDesc(oldPath)
 					writeMetaDesc(newPath, finalDesc)
 
+					// update selected file to new name
+					rel, _ := filepath.Rel(vaultDir, newPath)
+					if m.yapMode != yapAll {
+						m.selectedFile = filepath.Base(newPath)
+					} else {
+						m.selectedFile = rel
+					}
+
 					m.renameMode = false
 					m.inputMode = false
 					m.inputStep = 0
@@ -266,6 +277,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.SetValue("")
 				m.descInput.SetValue("")
 				m.input.Focus()
+
+				rel, _ := filepath.Rel(vaultDir, path)
+				if m.yapMode != yapAll {
+					m.selectedFile = filepath.Base(path)
+				} else {
+					m.selectedFile = rel
+				}
+
 				return m, openInEditor(path, m.editor)
 
 			case "esc":
