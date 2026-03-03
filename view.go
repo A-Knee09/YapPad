@@ -22,6 +22,18 @@ var statusStyle = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("241")).
 	MarginLeft(2)
 
+var previewHeaderStyle = func() lipgloss.Style {
+	b := lipgloss.RoundedBorder()
+	b.Right = "├"
+	return lipgloss.NewStyle().BorderStyle(b).Padding(0, 1).BorderForeground(lipgloss.Color("237"))
+}()
+
+var previewFooterStyle = func() lipgloss.Style {
+	b := lipgloss.RoundedBorder()
+	b.Left = "┤"
+	return previewHeaderStyle.BorderStyle(b).BorderForeground(lipgloss.Color("237"))
+}()
+
 var listItemStyles = func() (s list.DefaultItemStyles) {
 	s = list.NewDefaultItemStyles()
 
@@ -96,7 +108,7 @@ func (m model) View() string {
 		if m.showingImage {
 			previewView = m.viewport.View()
 		} else {
-			previewView = viewportStyle.Render(m.viewport.View())
+			previewView = fmt.Sprintf("%s\n%s\n%s", m.previewHeader(), m.viewport.View(), m.previewFooter())
 		}
 
 		return fmt.Sprintf(
@@ -105,6 +117,7 @@ func (m model) View() string {
 			lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), "  ", previewView),
 		)
 	}
+
 	return fmt.Sprintf(
 		"\n%s\n\n%s",
 		header,

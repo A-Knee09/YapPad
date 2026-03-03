@@ -5,12 +5,14 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type model struct {
@@ -139,4 +141,16 @@ func (m model) resolveFilePath(title string) string {
 		return filepath.Join(vaultDir, title)
 	}
 	return filepath.Join(vaultDir, m.yapMode.subdir(), title)
+}
+
+func (m model) previewHeader() string {
+	title := previewHeaderStyle.Render(m.selectedFile)
+	line := lipgloss.NewStyle().Foreground(lipgloss.Color("237")).Render(strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title))))
+	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
+}
+
+func (m model) previewFooter() string {
+	info := previewFooterStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+	line := lipgloss.NewStyle().Foreground(lipgloss.Color("237")).Render(strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info))))
+	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
 }

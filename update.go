@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/muesli/reflow/wordwrap"
 )
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -47,13 +48,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		m.viewport.Width = viewportWidth
-		m.viewport.Height = msg.Height - 7
+		m.viewport.Height = msg.Height - 10
 
 		m.list.SetSize(listWidth, msg.Height-5)
 
 		//  HACK: Not the best way, will fix later
 		if !m.ready {
-			m.viewport = viewport.New(viewportWidth, msg.Height-7)
+			m.viewport = viewport.New(viewportWidth, msg.Height-10)
 			m.ready = true
 			if m.list.SelectedItem() != nil {
 				i := m.list.SelectedItem().(item)
@@ -64,7 +65,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		} else {
 			m.viewport.Width = viewportWidth
-			m.viewport.Height = msg.Height - 7
+			m.viewport.Height = msg.Height - 10
 			if m.showPreview && m.selectedFile == "" {
 				if m.list.SelectedItem() != nil {
 					i := m.list.SelectedItem().(item)
@@ -82,9 +83,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 		return m, clearCmd
+
 	case fileLoadedMsg:
 		m.showingImage = false
-		m.viewport.SetContent(msg.content)
+		wrapped := wordwrap.String(msg.content, m.viewport.Width)
+		m.viewport.SetContent(wrapped)
 		m.viewport.GotoTop()
 
 	case clearViewportMsg:
