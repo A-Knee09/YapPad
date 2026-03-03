@@ -14,11 +14,13 @@ import (
 var (
 	vaultDir       string
 	defaultYapMode yapMode = yapAll
+	Version                = "v1.0.0-dev"
 )
 
 func main() {
 	modeFlag := flag.String("mode", "all", "")
 	editorFlag := flag.String("editor", "", "editor to use: nano, nvim, or inbuilt")
+	versionFlag := flag.Bool("version", false, "Print version")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `YapPad — a terminal journal & note-taking app
 
@@ -30,6 +32,7 @@ Options:
                  Modes: all, daily, weekly, monthly, yearly
 
   --editor <editor name> Run with nvim or nano
+  --version      Print version information
 
 Vault Directory:
   Optional path to the notes directory.
@@ -55,6 +58,11 @@ Examples:
 	}
 
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("YapPad version %s\n", Version)
+		os.Exit(0)
+	}
 
 	switch strings.ToLower(*modeFlag) {
 	case "all", "0":

@@ -70,6 +70,7 @@ yap --mode weekly ~/notes  # Use ~/notes as vault, weekly mode
 |------|-------------|
 | `--mode <mode>` | Set default yap mode: `all`, `daily`, `weekly`, `monthly`, `yearly` |
 | `--editor <editor name>` | Set editor for editing files: `nvim`,`nano`,`inbuilt (yet to be implemented)` |
+| `--version` | Print the application version |
 | `[vault-dir]` | Optional path to notes directory (default: `~/.YapPad`) |
 
 ## Features

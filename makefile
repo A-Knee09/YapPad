@@ -1,11 +1,14 @@
 .PHONY: build run install uninstall clean
 
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "v1.0.0")
+LDFLAGS := -ldflags="-X 'main.Version=$(VERSION)'"
+
 build:
 	mkdir -p build/
-	go build -o build/yap .
+	go build $(LDFLAGS) -o build/yap .
 
 run:
-	go run .
+	go run $(LDFLAGS) .
 
 install: build
 	mkdir -p ~/.local/bin
