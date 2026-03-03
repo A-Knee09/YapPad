@@ -29,7 +29,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		//  NOTE: Hard coded for now I'll need a better approach
-		const minWidthForPreview = 108
+		const minWidthForPreview = 90
 
 		if msg.Width < minWidthForPreview {
 			m.showPreview = false
