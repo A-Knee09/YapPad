@@ -64,6 +64,12 @@ Examples:
 		os.Exit(0)
 	}
 
+	switch strings.ToLower(*editorFlag) {
+	case "", "nano", "nvim", "inbuilt":
+	default:
+		log.Fatalf("unknown editor: %s (use nano, nvim, or inbuilt)", *editorFlag)
+	}
+
 	switch strings.ToLower(*modeFlag) {
 	case "all", "0":
 		defaultYapMode = yapAll

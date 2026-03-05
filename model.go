@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -36,6 +37,9 @@ type model struct {
 	deleting          bool
 	yapMode           yapMode
 	editor            string
+	editorMode        bool
+	editorFile        string
+	editorContent     textarea.Model
 }
 
 func (m model) Init() tea.Cmd { return nil }

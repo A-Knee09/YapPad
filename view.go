@@ -86,6 +86,15 @@ func (m model) View() string {
 		)
 	}
 
+	if m.editorMode {
+		editorStatus := statusStyle.Render("ctrl+s: save  ctrl+q: close")
+		return fmt.Sprintf(
+			"\n%s\n\n%s",
+			lipgloss.JoinHorizontal(lipgloss.Center, title, editorStatus),
+			m.editorContent.View(),
+		)
+	}
+
 	if m.inputMode {
 		if m.inputStep == 0 {
 			return fmt.Sprintf(

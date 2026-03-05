@@ -7,6 +7,13 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 )
 
+// NOTE: Inbuilt editor using textarea component
+
+type (
+	editorSavedMsg  struct{}
+	editorClosedMsg struct{}
+)
+
 // Tea messages
 
 type fileEditedMsg struct {

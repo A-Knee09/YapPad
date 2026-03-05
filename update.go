@@ -90,6 +90,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent(wrapped)
 		m.viewport.GotoTop()
 
+	case editorSavedMsg:
+		return m, m.list.NewStatusMessage("Saved!")
+
 	case clearViewportMsg:
 		// Blank the viewport so old text doesn't bleed under image overlay
 		m.viewport.SetContent(strings.Repeat("\n", m.viewport.Height))
@@ -149,6 +152,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.EnableMouseAllMotion
 
 	case tea.KeyMsg:
+
+		// NOTE: Inbuilt textarea
+		if m.editorMode {
+			switch msg.String() {
+			case "ctrl+s":
+				return m, saveEditorContent(m.editorFile, m.editorContent.Value())
+			case "ctrl+q":
+				m.editorMode = false
+				m.editorContent.Blur()
+				if m.showPreview {
+					return m, m.loadFileOrImage(m.resolveFilePath(m.selectedFile))
+				}
+				return m, nil
+			}
+			var editorCmd tea.Cmd
+			m.editorContent, editorCmd = m.editorContent.Update(msg)
+			return m, editorCmd
+		}
+
 		// DELETE CONFIRMATION MODE
 		if m.deleting {
 			switch msg.String() {
@@ -284,7 +306,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else {
 					m.selectedFile = rel
 				}
-
+				if m.editor == "inbuilt" {
+					var editorCmd tea.Cmd
+					m, editorCmd = openInbuiltEditor(path, m)
+					return m, editorCmd
+				}
 				return m, openInEditor(path, m.editor)
 
 			case "esc":
@@ -412,6 +438,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				path := m.resolveFilePath(it.title)
 				if isImageFile(path) {
 					return m, openImageViewer(path)
+				}
+				if m.editor == "inbuilt" {
+					var editorCmd tea.Cmd
+					m, editorCmd = openInbuiltEditor(path, m)
+					return m, editorCmd
 				}
 				return m, openInEditor(path, m.editor)
 			}
