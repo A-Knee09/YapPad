@@ -219,8 +219,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					desc := m.descInput.Value()
 
 					oldPath := m.resolveFilePath(m.renameTarget)
-					if !strings.HasSuffix(name, ".md") {
-						name += ".md"
+					originalExt := filepath.Ext(m.renameTarget)
+					if filepath.Ext(name) == "" {
+						name += originalExt
 					}
 					newPath := filepath.Join(vaultDir, name)
 
@@ -274,7 +275,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					defaultName := m.yapMode.defaultNoteName()
 					path = filepath.Join(vaultDir, subdir, defaultName)
 				} else {
-					if !strings.HasSuffix(name, ".md") {
+					if filepath.Ext(name) == "" {
 						name += ".md"
 					}
 					path = filepath.Join(vaultDir, name)
