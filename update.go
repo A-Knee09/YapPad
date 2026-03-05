@@ -91,6 +91,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.GotoTop()
 
 	case editorSavedMsg:
+		m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 		return m, m.list.NewStatusMessage("Saved!")
 
 	case clearViewportMsg:
@@ -161,6 +162,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+q":
 				m.editorMode = false
 				m.editorContent.Blur()
+				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
 				if m.showPreview {
 					return m, m.loadFileOrImage(m.resolveFilePath(m.selectedFile))
 				}
