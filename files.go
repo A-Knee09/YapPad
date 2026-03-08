@@ -250,13 +250,10 @@ func listFiles(sMode sortMode, yMode yapMode) []list.Item {
 
 		// Attempt to get creation time (best effort)
 		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
-			sec := stat.Ctim.Sec
-			nsec := stat.Ctim.Nsec
-			creTime = time.Unix(sec, nsec)
+			creTime = getCreationTime(stat)
 		} else {
 			creTime = modTime
 		}
-
 		modStr := modTime.Format(time.RFC822)
 
 		customDesc := readMetaDesc(path)
