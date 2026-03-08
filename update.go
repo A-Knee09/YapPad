@@ -224,7 +224,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 							break
 						}
 						m.inputStep = 1
-						m.descInput.Placeholder = "New description (optional, enter to skip)"
+						m.descInput.Placeholder = "(optional, enter to skip)"
 						m.input.Blur()
 						m.descInput.Focus()
 						return m, nil
@@ -276,7 +276,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.inputStep = 1
 					m.input.Blur()
 					m.descInput.SetValue("")
-					m.descInput.Placeholder = "Description (optional, press enter to skip)"
+					m.descInput.Placeholder = "(optional, press enter to skip)"
 					m.descInput.Focus()
 					return m, nil
 				}

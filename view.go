@@ -119,7 +119,7 @@ func (m model) View() string {
 			)
 		}
 		return fmt.Sprintf(
-			"\n%s\n\n%s\n%s\n\n%s",
+			"\n%s\n\n File Name %s\n Description %s\n\n%s",
 			header,
 			m.input.View(),
 			m.descInput.View(),
