@@ -28,6 +28,7 @@ func main() {
 	modeFlag := flag.String("mode", "all", "")
 	editorFlag := flag.String("editor", "", "editor to use: nano, nvim, or inbuilt")
 	versionFlag := flag.Bool("version", false, "Print version")
+	themeFlag := flag.String("theme", "default", "theme: default, algae, gruvbox, nord, tokyonight")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `YapPad — a terminal journal & note-taking app
 
@@ -102,7 +103,7 @@ Examples:
 		vaultDir = filepath.Join(home, ".YapPad")
 	}
 
-	p := tea.NewProgram(initialModel(*editorFlag), tea.WithAltScreen(), tea.WithMouseAllMotion())
+	p := tea.NewProgram(initialModel(*editorFlag, *themeFlag), tea.WithAltScreen(), tea.WithMouseAllMotion())
 	if _, err := p.Run(); err != nil {
 		fmt.Println("error:", err)
 		os.Exit(1)

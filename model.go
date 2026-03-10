@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -47,11 +46,12 @@ type model struct {
 	editorContent     textarea.Model
 	spinner           spinner.Model
 	loadingFile       bool
+	theme             Theme
 }
 
 func (m model) Init() tea.Cmd { return nil }
 
-func initialModel(editor string) model {
+func initialModel(editor string, themeName string) model {
 	listKeys := newListKeyMap()
 
 	if err := os.MkdirAll(vaultDir, 0o755); err != nil {
@@ -62,7 +62,6 @@ func initialModel(editor string) model {
 	items := listFiles(sortModifiedDesc, defaultMode)
 
 	delegate := list.NewDefaultDelegate()
-	delegate.Styles = listItemStyles
 	l := list.New(items, delegate, 0, 0)
 	l.Title = "All Yaps Here"
 	l.SetShowTitle(true)
@@ -80,6 +79,7 @@ func initialModel(editor string) model {
 		}
 	}
 
+	t := getTheme(themeName)
 	ti := textinput.New()
 	ti.Placeholder = fmt.Sprintf("%s/%s (default)", defaultMode.defaultNoteDir(), defaultMode.defaultNoteName())
 	ti.CharLimit = 128
@@ -105,6 +105,7 @@ func initialModel(editor string) model {
 		sortMode:    sortModifiedDesc,
 		yapMode:     defaultMode,
 		editor:      editor,
+		theme:       t,
 	}
 }
 
@@ -160,16 +161,4 @@ func (m model) resolveFilePath(title string) string {
 		return filepath.Join(vaultDir, title)
 	}
 	return filepath.Join(vaultDir, m.yapMode.subdir(), title)
-}
-
-func (m model) previewHeader() string {
-	title := previewHeaderStyle.Render(m.selectedFile)
-	line := lipgloss.NewStyle().Foreground(lipgloss.Color("237")).Render(strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title))))
-	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
-}
-
-func (m model) previewFooter() string {
-	info := previewFooterStyle.Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	line := lipgloss.NewStyle().Foreground(lipgloss.Color("237")).Render(strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info))))
-	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
 }
