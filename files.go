@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -20,10 +21,27 @@ import (
 	"github.com/charmbracelet/glamour"
 )
 
-var glamourRenderer, _ = glamour.NewTermRenderer(
-	glamour.WithAutoStyle(),
-	glamour.WithWordWrap(0),
+var (
+	glamourRenderer *glamour.TermRenderer
+	glamourMu       sync.Mutex
 )
+
+func init() {
+	glamourRenderer, _ = glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(0),
+	)
+}
+
+func renderMarkdown(content string) string {
+	glamourMu.Lock()
+	defer glamourMu.Unlock()
+	rendered, err := glamourRenderer.Render(content)
+	if err != nil {
+		return content
+	}
+	return rendered
+}
 
 /*
 	NOTE:
@@ -53,11 +71,7 @@ func readFile(path string) tea.Cmd {
 		}
 
 		if ext == ".md" || ext == ".markdown" {
-			rendered, err := glamourRenderer.Render(string(content))
-			if err != nil {
-				return fileLoadedMsg{content: string(content)}
-			}
-			return fileLoadedMsg{content: rendered}
+			return fileLoadedMsg{content: renderMarkdown(string(content))}
 		}
 
 		var buf bytes.Buffer
