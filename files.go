@@ -1,4 +1,4 @@
-// NOTE: Only for Disk operations and Image rendering logic
+// NOTE: Only for Disk operations
 
 package main
 

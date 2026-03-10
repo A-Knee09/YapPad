@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -61,6 +62,8 @@ func (m model) View() string {
 	}
 
 	if m.showPreview {
+		listWidth := m.width / 2
+		spacer := strings.Repeat(" ", max(0, listWidth-lipgloss.Width(m.list.View())))
 		var previewView string
 		if m.loadingFile {
 			previewView = fmt.Sprintf("%s\n\n  %s Loading...", m.previewHeader(), m.spinner.View())
@@ -72,7 +75,7 @@ func (m model) View() string {
 		return fmt.Sprintf(
 			"\n%s\n\n%s",
 			header,
-			lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), "  ", previewView),
+			lipgloss.JoinHorizontal(lipgloss.Top, m.list.View(), spacer, previewView),
 		)
 	}
 
