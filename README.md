@@ -16,8 +16,9 @@ https://github.com/user-attachments/assets/c601849c-5179-4787-9b64-93ca44c7f397
 
 <img width="1588" height="815" alt="MD render" src="https://github.com/user-attachments/assets/22e89bb2-56a3-4057-88ca-f342b9a2c35e" />
 
+<img width="1278" height="748" alt="Preview" src="https://github.com/user-attachments/assets/56d7f0c6-4223-4ad9-a9cc-be301fac1aa3" />
 
-<img width="1289" height="817" alt="YapPad image rendering" src="https://github.com/user-attachments/assets/93507e04-aa27-43e4-adde-02299d89090a" />
+<!--<img width="1289" height="817" alt="YapPad image rendering" src="https://github.com/user-attachments/assets/93507e04-aa27-43e4-adde-02299d89090a" />-->
 
 
 
