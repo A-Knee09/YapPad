@@ -4,12 +4,10 @@ package main
 
 import (
 	"bytes"
-	"cmp"
 	"fmt"
 	"io/fs"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -26,78 +24,6 @@ var glamourRenderer, _ = glamour.NewTermRenderer(
 	glamour.WithAutoStyle(),
 	glamour.WithWordWrap(0),
 )
-
-// isImageFile checks if a file is an image by extension or content detection.
-func isImageFile(path string) bool {
-	ext := strings.ToLower(filepath.Ext(path))
-	switch ext {
-	case ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".svg", ".ico", ".tiff":
-		return true
-	}
-	// Fallback: read first 512 bytes and detect
-	f, err := os.Open(path)
-	if err != nil {
-		return false
-	}
-	defer f.Close()
-	buf := make([]byte, 512)
-	n, _ := f.Read(buf)
-	if n == 0 {
-		return false
-	}
-	ct := http.DetectContentType(buf[:n])
-	return strings.HasPrefix(ct, "image/")
-}
-
-// clearKittyGraphics sends the escape sequence to delete all Kitty images.
-func clearKittyGraphics() tea.Cmd {
-	return func() tea.Msg {
-		fmt.Print("\x1b_Ga=d,d=a\x1b\\")
-		return nil
-	}
-}
-
-/*
-	NOTE:
-
-renderImage uses chafa to generate a Kitty image escape sequence, then
-writes it directly to stdout at a specific cell offset. The output is
-captured first to prevent chafa's own cursor movements from wrecking
-the Bubble Tea TUI.
-*/
-var imageCache = map[string][]byte{}
-
-func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
-	return func() tea.Msg {
-		key := fmt.Sprintf("%s-%dx%d", path, cols, rows)
-
-		if cached, ok := imageCache[key]; ok {
-			var buf bytes.Buffer
-			buf.WriteString("\x1b[s")
-			buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset))
-			buf.Write(cached)
-			buf.WriteString("\x1b[u")
-			os.Stdout.Write(buf.Bytes())
-			return imageRenderedMsg{}
-		}
-
-		cmd := exec.Command("chafa", "-f", "kitty", "-s", fmt.Sprintf("%dx%d", cols, rows), path)
-		output, err := cmd.Output()
-		if err != nil {
-			return imageRenderedMsg{}
-		}
-
-		imageCache[key] = output
-
-		var buf bytes.Buffer
-		buf.WriteString("\x1b[s")
-		buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset))
-		buf.Write(output)
-		buf.WriteString("\x1b[u")
-		os.Stdout.Write(buf.Bytes())
-		return imageRenderedMsg{}
-	}
-}
 
 /*
 	NOTE:
@@ -141,15 +67,6 @@ func readFile(path string) tea.Cmd {
 		}
 		return fileLoadedMsg{content: buf.String()}
 	}
-}
-
-// NOTE: Open Image viewer
-func openImageViewer(path string) tea.Cmd {
-	viewer := cmp.Or(os.Getenv("IMAGE_VIEWER"), "xdg-open")
-	c := exec.Command(viewer, path)
-	return tea.ExecProcess(c, func(err error) tea.Msg {
-		return fileEditedMsg{err: err}
-	})
 }
 
 // NOTE: Made for adding description to an item

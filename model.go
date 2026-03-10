@@ -111,16 +111,19 @@ func initialModel(editor string) model {
 // NOTE: loadFileOrImage determines if a file is an image or text and dispatches to the appropriate handler.
 func (m model) loadFileOrImage(path string) tea.Cmd {
 	if isImageFile(path) {
-		// Account for: left panel width + separator + border
 		listWidth := m.width / 2
-		xOffset := listWidth + 4 + 1
+		xOffset := listWidth + 6
 
-		// Account for: header height + border
-		yOffset := 4 + 3
+		cols := m.viewport.Width - 1
+		rows := m.viewport.Height
 
-		// Shrink cols/rows to fit inside the border
-		cols := m.viewport.Width - 2
-		rows := m.viewport.Height - 2
+		// Adjust yOffset based on aspect ratio
+		yOffset := 4 + 4
+		ratio, err := getImageAspectRatio(path)
+		if err == nil && ratio > 0.8 {
+			xOffset = listWidth + 15
+			yOffset = 4 + 3
+		}
 
 		return tea.Sequence(
 			clearKittyGraphics(),
