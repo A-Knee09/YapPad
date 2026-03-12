@@ -46,7 +46,7 @@ var themes = map[string]Theme{
 	"tokyonight": {
 		Primary:   lipgloss.Color("111"),
 		Secondary: lipgloss.Color("110"),
-		Border:    lipgloss.Color("237"),
+		Border:    lipgloss.Color("111"),
 		Accent:    lipgloss.Color("141"),
 		Muted:     lipgloss.Color("103"),
 		Text:      lipgloss.Color("189"),
@@ -89,6 +89,66 @@ var themes = map[string]Theme{
 		Muted:     lipgloss.Color("245"),
 		Text:      lipgloss.Color("255"),
 		SubText:   lipgloss.Color("246"),
+	},
+	"dusk": {
+		Primary:   lipgloss.Color("97"),  // deep violet
+		Secondary: lipgloss.Color("181"), // dusty rose
+		Border:    lipgloss.Color("60"),  // dark violet
+		Accent:    lipgloss.Color("175"), // warm pink
+		Muted:     lipgloss.Color("245"), // muted purple
+		MoreMuted: lipgloss.Color("60"),  // very dark violet
+		Text:      lipgloss.Color("254"), // near white
+		SubText:   lipgloss.Color("249"), // light grey
+	},
+	"tide": {
+		Primary:   lipgloss.Color("67"),  // slate blue
+		Secondary: lipgloss.Color("115"), // seafoam
+		Border:    lipgloss.Color("67"),  // ocean blue
+		Accent:    lipgloss.Color("216"), // coral
+		Muted:     lipgloss.Color("109"), // muted teal
+		MoreMuted: lipgloss.Color("60"),  // deep ocean
+		Text:      lipgloss.Color("255"), // bright white
+		SubText:   lipgloss.Color("152"), // light seafoam
+	},
+	"moss": {
+		Primary:   lipgloss.Color("66"),  // dark green
+		Secondary: lipgloss.Color("145"), // sage
+		Border:    lipgloss.Color("65"),  // forest border
+		Accent:    lipgloss.Color("179"), // amber
+		Muted:     lipgloss.Color("108"), // muted green
+		MoreMuted: lipgloss.Color("235"), // very dark green
+		Text:      lipgloss.Color("254"), // near white
+		SubText:   lipgloss.Color("151"), // light sage
+	},
+	"glacier": {
+		Primary:   lipgloss.Color("109"), // glacier blue
+		Secondary: lipgloss.Color("152"), // frost
+		Border:    lipgloss.Color("67"),  // ice blue
+		Accent:    lipgloss.Color("109"), // soft teal
+		Muted:     lipgloss.Color("110"), // muted glacier
+		MoreMuted: lipgloss.Color("66"),  // deep ice
+		Text:      lipgloss.Color("255"), // bright white
+		SubText:   lipgloss.Color("152"), // light frost
+	},
+	"plum": {
+		Primary:   lipgloss.Color("96"),  // deep plum
+		Secondary: lipgloss.Color("146"), // lavender
+		Border:    lipgloss.Color("96"),  // plum border
+		Accent:    lipgloss.Color("109"), // mint
+		Muted:     lipgloss.Color("139"), // muted purple
+		MoreMuted: lipgloss.Color("236"), // very dark plum
+		Text:      lipgloss.Color("255"), // bright white
+		SubText:   lipgloss.Color("182"), // light lavender
+	},
+	"algae": {
+		Primary:   lipgloss.Color("107"), // #628141 green
+		Secondary: lipgloss.Color("252"), // #E5D9B6 cream
+		Border:    lipgloss.Color("238"), // #40513B dark green
+		Accent:    lipgloss.Color("209"), // #E67E22 orange
+		Muted:     lipgloss.Color("107"), // green muted
+		MoreMuted: lipgloss.Color("238"), // dark green
+		Text:      lipgloss.Color("252"), // cream
+		SubText:   lipgloss.Color("245"), // muted cream
 	},
 }
 
