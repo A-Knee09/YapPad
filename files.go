@@ -132,15 +132,11 @@ func deleteMetaDesc(filePath string) {
 	os.Remove(metaPath)
 }
 
-func listFiles(sMode sortMode, yMode yapMode) []list.Item {
+func listFiles(sMode sortMode) []list.Item {
 	var items []list.Item
 
 	var searchDir string
-	if yMode == yapAll {
-		searchDir = vaultDir
-	} else {
-		searchDir = filepath.Join(vaultDir, yMode.subdir())
-	}
+	searchDir = vaultDir
 
 	filepath.WalkDir(searchDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -183,14 +179,7 @@ func listFiles(sMode sortMode, yMode yapMode) []list.Item {
 			desc = "Modified: " + modStr
 		}
 
-		var displayName string
-		if yMode == yapAll {
-			// Show relative path from vault root (includes subdir prefix)
-			displayName, _ = filepath.Rel(vaultDir, path)
-		} else {
-			// Show just the filename within the subdir
-			displayName = d.Name()
-		}
+		displayName, _ := filepath.Rel(vaultDir, path)
 
 		items = append(items, item{
 			title: displayName,

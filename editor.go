@@ -27,8 +27,6 @@ func openInbuiltEditor(path string, m model) (model, tea.Cmd) {
 	m.editorFile = path
 	m.editorContent = ta
 
-	m.list.SetItems(listFiles(m.sortMode, m.yapMode))
-
 	return m, nil
 }
 

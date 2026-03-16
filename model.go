@@ -1,6 +1,6 @@
 /*
 NOTE:
-Defines the model struct with all state, initialModel constructor, Init, loadFileOrImage, switchYapMode, and resolveFilePath
+Defines the model struct with all state, initialModel constructor, Init, loadFileOrImage, and resolveFilePath
 */
 package main
 
@@ -19,6 +19,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
+
+var vaultDir string
 
 type model struct {
 	list              list.Model
@@ -39,7 +41,6 @@ type model struct {
 	height            int
 	sortMode          sortMode
 	deleting          bool
-	yapMode           yapMode
 	editor            string
 	editorMode        bool
 	editorFile        string
@@ -58,8 +59,7 @@ func initialModel(editor string, themeName string) model {
 		log.Fatal(err)
 	}
 
-	defaultMode := defaultYapMode
-	items := listFiles(sortModifiedDesc, defaultMode)
+	items := listFiles(sortModifiedDesc)
 
 	delegate := list.NewDefaultDelegate()
 	l := list.New(items, delegate, 0, 0)
@@ -72,27 +72,28 @@ func initialModel(editor string, themeName string) model {
 			listKeys.Rename,
 			listKeys.Delete,
 			listKeys.TogglePreview,
-
 			listKeys.ToggleHelpMenu,
 			listKeys.CycleSort,
-			listKeys.YapMode,
 		}
 	}
 
 	t := getTheme(themeName)
+
 	ti := textinput.New()
-	ti.Placeholder = fmt.Sprintf("%s/%s (default)", defaultMode.defaultNoteDir(), defaultMode.defaultNoteName())
+	ti.Placeholder = "filename.md (enter for default)"
 	ti.CharLimit = 128
 	ti.Width = 40
+	ti.Cursor.Style = lipgloss.NewStyle().Foreground(t.Primary)
 
 	di := textinput.New()
 	di.Placeholder = "Description (optional, press enter to skip)"
 	di.CharLimit = 128
 	di.Width = 40
+	di.Cursor.Style = lipgloss.NewStyle().Foreground(t.Primary)
 
 	s := spinner.New()
 	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("62"))
+	s.Style = lipgloss.NewStyle().Foreground(t.Primary)
 
 	return model{
 		list:        l,
@@ -103,13 +104,11 @@ func initialModel(editor string, themeName string) model {
 		viewport:    viewport.New(0, 0),
 		showPreview: true,
 		sortMode:    sortModifiedDesc,
-		yapMode:     defaultMode,
 		editor:      editor,
 		theme:       t,
 	}
 }
 
-// NOTE: loadFileOrImage determines if a file is an image or text and dispatches to the appropriate handler.
 func (m model) loadFileOrImage(path string) tea.Cmd {
 	if isImageFile(path) {
 		listWidth := m.width / 2
@@ -118,7 +117,6 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 		cols := m.viewport.Width - 1
 		rows := m.viewport.Height
 
-		// Adjust yOffset based on aspect ratio
 		yOffset := 4 + 4
 		ratio, err := getImageAspectRatio(path)
 		if err == nil && ratio > 0.8 {
@@ -139,26 +137,33 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 	)
 }
 
-// NOTE: switchYapMode changes the yap mode, refreshes the list, and loads the first item's preview (or clears the viewport if the list is empty).
-func (m model) switchYapMode(mode yapMode) (tea.Model, tea.Cmd) {
-	m.yapMode = mode
-	m.list.SetItems(listFiles(m.sortMode, m.yapMode))
-	m.list.Title = m.yapMode.String() + " Yaps"
-	m.selectedFile = ""
-
-	if m.list.SelectedItem() != nil {
-		i := m.list.SelectedItem().(item)
-		m.selectedFile = i.title
-		return m, m.loadFileOrImage(m.resolveFilePath(i.title))
-	}
-	m.viewport.SetContent("")
-	return m, clearKittyGraphics()
+func (m model) resolveFilePath(title string) string {
+	return filepath.Join(vaultDir, title)
 }
 
-// NOTE: resolveFilePath resolves the full path for a file given its display title.
-func (m model) resolveFilePath(title string) string {
-	if m.yapMode == yapAll {
-		return filepath.Join(vaultDir, title)
+func (m model) previewHeader() string {
+	title := m.previewHeaderStyle().Render(m.selectedFile)
+	line := lipgloss.NewStyle().Foreground(m.theme.Border).Render(
+		fmt.Sprintf("%s", repeatRune('─', max(0, m.viewport.Width-lipgloss.Width(title)))),
+	)
+	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
+}
+
+func (m model) previewFooter() string {
+	info := m.previewFooterStyle().Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
+	line := lipgloss.NewStyle().Foreground(m.theme.Border).Render(
+		fmt.Sprintf("%s", repeatRune('─', max(0, m.viewport.Width-lipgloss.Width(info)))),
+	)
+	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
+}
+
+func repeatRune(r rune, n int) string {
+	if n <= 0 {
+		return ""
 	}
-	return filepath.Join(vaultDir, m.yapMode.subdir(), title)
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = r
+	}
+	return string(b)
 }

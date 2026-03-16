@@ -6,7 +6,6 @@ all state transitions and event handling. The entire Update function — keyboar
 package main
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -34,7 +33,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			clearCmd = clearKittyGraphics()
 		}
 
-		//  NOTE: Hard coded for now I'll need a better approach
 		const minWidthForPreview = 90
 
 		if msg.Width < minWidthForPreview {
@@ -44,7 +42,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		var listWidth, viewportWidth int
-
 		if m.showPreview {
 			listWidth = msg.Width / 2
 			viewportWidth = msg.Width - listWidth - 4 - 2
@@ -54,10 +51,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		m.viewport.Width = viewportWidth
 		m.viewport.Height = msg.Height - 10
-
 		m.list.SetSize(listWidth, msg.Height-5)
 
-		//  HACK: Not the best way, will fix later
 		if !m.ready {
 			m.viewport = viewport.New(viewportWidth, msg.Height-10)
 			m.ready = true
@@ -106,15 +101,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.GotoTop()
 
 	case editorSavedMsg:
-		m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+		m.list.SetItems(listFiles(m.sortMode))
 		return m, m.list.NewStatusMessage("Saved!")
 
 	case clearViewportMsg:
-		// Blank the viewport so old text doesn't bleed under image overlay
 		m.viewport.SetContent(strings.Repeat("\n", m.viewport.Height))
 
 	case imageRenderedMsg:
-		// Image was drawn directly to stdout as overlay.
 		m.loadingFile = false
 		m.showingImage = true
 
@@ -131,14 +124,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if msg.X < listWidth {
-			// Scroll List
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
 				m.list.CursorUp()
 			case tea.MouseButtonWheelDown:
 				m.list.CursorDown()
 			}
-			// Update selection immediately after scrolling
 			if m.list.SelectedItem() != nil {
 				i := m.list.SelectedItem().(item)
 				if i.title != m.selectedFile {
@@ -149,7 +140,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		} else if m.showPreview && msg.X > listWidth {
-			// Scroll Viewport
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
 				m.viewport.ScrollUp(1)
@@ -163,7 +153,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case fileEditedMsg:
-		m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+		m.list.SetItems(listFiles(m.sortMode))
 		m.viewport.SetContent("")
 		if m.selectedFile != "" && m.showPreview {
 			m.loadingFile = true
@@ -173,7 +163,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 
-		// NOTE: Inbuilt textarea
+		// EDITOR MODE
 		if m.editorMode {
 			switch msg.String() {
 			case "ctrl+s":
@@ -181,7 +171,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "ctrl+q":
 				m.editorMode = false
 				m.editorContent.Blur()
-				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+				m.list.SetItems(listFiles(m.sortMode))
 				if m.showPreview {
 					m.loadingFile = true
 					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
@@ -201,7 +191,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					path := m.resolveFilePath(it.title)
 					os.Remove(path)
 					deleteMetaDesc(path)
-					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+					m.list.SetItems(listFiles(m.sortMode))
 					statusCmd := m.list.NewStatusMessage("Deleted " + it.title)
 					m.deleting = false
 					return m, statusCmd
@@ -234,7 +224,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						return m, nil
 					}
 
-					// rename + update desc
 					name := m.input.Value()
 					desc := m.descInput.Value()
 
@@ -251,19 +240,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						finalDesc = oldDesc
 					}
 
-					if err := os.MkdirAll(filepath.Dir(newPath), 0o755); err != nil {
-					}
+					os.MkdirAll(filepath.Dir(newPath), 0o755)
 					os.Rename(oldPath, newPath)
 					deleteMetaDesc(oldPath)
 					writeMetaDesc(newPath, finalDesc)
 
-					// update selected file to new name
 					rel, _ := filepath.Rel(vaultDir, newPath)
-					if m.yapMode != yapAll {
-						m.selectedFile = filepath.Base(newPath)
-					} else {
-						m.selectedFile = rel
-					}
+					m.selectedFile = rel
 
 					m.renameMode = false
 					m.inputMode = false
@@ -271,7 +254,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.input.SetValue("")
 					m.descInput.SetValue("")
 					m.input.Focus()
-					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+					m.list.SetItems(listFiles(m.sortMode))
 					return m, nil
 				}
 
@@ -291,9 +274,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				var path string
 				if name == "" {
-					subdir := m.yapMode.defaultNoteDir()
-					defaultName := m.yapMode.defaultNoteName()
-					path = filepath.Join(vaultDir, subdir, defaultName)
+					path = filepath.Join(vaultDir, "note.md")
 				} else {
 					if filepath.Ext(name) == "" {
 						name += ".md"
@@ -301,34 +282,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					path = filepath.Join(vaultDir, name)
 				}
 
-				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-				}
-
+				os.MkdirAll(filepath.Dir(path), 0o755)
 				if _, err := os.Stat(path); os.IsNotExist(err) {
-					var content []byte
-					if m.input.Value() == "" {
-						tplPath := filepath.Join(vaultDir, ".templates", m.yapMode.defaultNoteDir()+".md")
-						if tplData, err := os.ReadFile(tplPath); err == nil {
-							content = tplData
-						}
-					}
-					os.WriteFile(path, content, 0o644)
+					os.WriteFile(path, []byte{}, 0o644)
 				}
 
 				writeMetaDesc(path, desc)
+
+				rel, _ := filepath.Rel(vaultDir, path)
+				m.selectedFile = rel
 
 				m.inputMode = false
 				m.inputStep = 0
 				m.input.SetValue("")
 				m.descInput.SetValue("")
 				m.input.Focus()
+				m.list.SetItems(listFiles(m.sortMode))
 
-				rel, _ := filepath.Rel(vaultDir, path)
-				if m.yapMode != yapAll {
-					m.selectedFile = filepath.Base(path)
-				} else {
-					m.selectedFile = rel
-				}
 				if m.editor == "inbuilt" {
 					var editorCmd tea.Cmd
 					m, editorCmd = openInbuiltEditor(path, m)
@@ -343,34 +313,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input.SetValue("")
 				m.descInput.SetValue("")
 				m.input.Focus()
-				m.list.SetItems(listFiles(m.sortMode, m.yapMode))
-				return m, nil
-
-			case "tab":
-				if m.inputStep == 0 {
-					switch m.yapMode {
-					case yapAll, yapDaily:
-						m.yapMode = yapWeekly
-					case yapWeekly:
-						m.yapMode = yapMonthly
-					case yapMonthly:
-						m.yapMode = yapYearly
-					case yapYearly:
-						m.yapMode = yapDaily
-					}
-					m.input.Placeholder = fmt.Sprintf("%s/%s (default)", m.yapMode.defaultNoteDir(), m.yapMode.defaultNoteName())
-					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
-				}
+				m.list.SetItems(listFiles(m.sortMode))
 				return m, nil
 			}
 
 			if m.inputStep == 0 {
 				m.input, cmd = m.input.Update(msg)
-
-				// Live-filter list based on typed input
 				val := m.input.Value()
 				if val != "" {
-					allItems := listFiles(m.sortMode, yapAll)
+					allItems := listFiles(m.sortMode)
 					var filtered []list.Item
 					lowerVal := strings.ToLower(val)
 					for _, it := range allItems {
@@ -380,12 +331,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.list.SetItems(filtered)
 				} else {
-					m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+					m.list.SetItems(listFiles(m.sortMode))
 				}
 			} else {
 				m.descInput, cmd = m.descInput.Update(msg)
 			}
-
 			return m, cmd
 		}
 
@@ -394,7 +344,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.New):
 			m.inputMode = true
-			m.input.Placeholder = fmt.Sprintf("%s/%s (default)", m.yapMode.defaultNoteDir(), m.yapMode.defaultNoteName())
+			m.input.Placeholder = "filename.md (enter for default)"
 			m.input.Focus()
 			return m, nil
 
@@ -412,7 +362,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.inputStep = 0
 				m.input.SetValue(it.title)
 				m.input.Focus()
-				// Pre-fill existing description
 				existingDesc := readMetaDesc(m.resolveFilePath(it.title))
 				m.descInput.SetValue(existingDesc)
 			}
@@ -420,7 +369,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.CycleSort):
 			m.sortMode = (m.sortMode + 1) % 6
-			m.list.SetItems(listFiles(m.sortMode, m.yapMode))
+			m.list.SetItems(listFiles(m.sortMode))
 			m.selectedFile = ""
 			if m.list.SelectedItem() != nil && m.showPreview {
 				i := m.list.SelectedItem().(item)
@@ -453,7 +402,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.loadingFile = true
 				return m, tea.Batch(resizeCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 			}
-
 			return m, resizeCmd
 
 		case msg.String() == "enter":
@@ -472,21 +420,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, openInEditor(path, m.editor)
 			}
-
-		case msg.String() == "0" && m.list.FilterState() != list.Filtering:
-			return m.switchYapMode(yapAll)
-
-		case msg.String() == "1" && m.list.FilterState() != list.Filtering:
-			return m.switchYapMode(yapDaily)
-
-		case msg.String() == "2" && m.list.FilterState() != list.Filtering:
-			return m.switchYapMode(yapWeekly)
-
-		case msg.String() == "3" && m.list.FilterState() != list.Filtering:
-			return m.switchYapMode(yapMonthly)
-
-		case msg.String() == "4" && m.list.FilterState() != list.Filtering:
-			return m.switchYapMode(yapYearly)
 		}
 	}
 

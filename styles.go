@@ -22,6 +22,7 @@ var themes = map[string]Theme{
 		Border:    lipgloss.Color("237"),
 		Accent:    lipgloss.Color("135"),
 		Muted:     lipgloss.Color("240"),
+		MoreMuted: lipgloss.Color("235"),
 		Text:      lipgloss.Color("252"),
 		SubText:   lipgloss.Color("244"),
 	},
@@ -31,6 +32,7 @@ var themes = map[string]Theme{
 		Border:    lipgloss.Color("239"),
 		Accent:    lipgloss.Color("167"),
 		Muted:     lipgloss.Color("244"),
+		MoreMuted: lipgloss.Color("236"),
 		Text:      lipgloss.Color("223"),
 		SubText:   lipgloss.Color("244"),
 	},
@@ -39,7 +41,8 @@ var themes = map[string]Theme{
 		Secondary: lipgloss.Color("109"),
 		Border:    lipgloss.Color("103"),
 		Accent:    lipgloss.Color("111"),
-		Muted:     lipgloss.Color("103"),
+		Muted:     lipgloss.Color("67"),
+		MoreMuted: lipgloss.Color("103"),
 		Text:      lipgloss.Color("189"),
 		SubText:   lipgloss.Color("103"),
 	},
@@ -49,6 +52,7 @@ var themes = map[string]Theme{
 		Border:    lipgloss.Color("111"),
 		Accent:    lipgloss.Color("141"),
 		Muted:     lipgloss.Color("103"),
+		MoreMuted: lipgloss.Color("236"),
 		Text:      lipgloss.Color("189"),
 		SubText:   lipgloss.Color("103"),
 	},
@@ -69,6 +73,7 @@ var themes = map[string]Theme{
 		Border:    lipgloss.Color("240"), // gray
 		Accent:    lipgloss.Color("166"), // orange
 		Muted:     lipgloss.Color("244"),
+		MoreMuted: lipgloss.Color("238"),
 		Text:      lipgloss.Color("254"),
 		SubText:   lipgloss.Color("246"),
 	},
@@ -78,6 +83,7 @@ var themes = map[string]Theme{
 		Border:    lipgloss.Color("238"),
 		Accent:    lipgloss.Color("150"), // green
 		Muted:     lipgloss.Color("245"),
+		MoreMuted: lipgloss.Color("236"),
 		Text:      lipgloss.Color("255"),
 		SubText:   lipgloss.Color("248"),
 	},
@@ -87,6 +93,7 @@ var themes = map[string]Theme{
 		Border:    lipgloss.Color("239"),
 		Accent:    lipgloss.Color("81"), // cyan
 		Muted:     lipgloss.Color("245"),
+		MoreMuted: lipgloss.Color("236"),
 		Text:      lipgloss.Color("255"),
 		SubText:   lipgloss.Color("246"),
 	},

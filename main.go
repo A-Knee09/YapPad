@@ -10,102 +10,93 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
 	"os"
-	"path/filepath"
-	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var (
-	vaultDir       string
-	defaultYapMode yapMode = yapAll
-	Version                = "v1.0.0-dev"
-)
+var Version = "v0.1.0-dev"
 
 func main() {
-	modeFlag := flag.String("mode", "all", "")
-	editorFlag := flag.String("editor", "", "editor to use: nano, nvim, or inbuilt")
-	versionFlag := flag.Bool("version", false, "Print version")
-	themeFlag := flag.String("theme", "default", "theme: default, algae, gruvbox, nord, tokyonight")
+	if len(os.Args) > 1 && os.Args[1] == "--version" {
+		fmt.Println(Version)
+		return
+	}
+
+	cfgFile := configPath()
+	var cfg Config
+	if _, err := os.Stat(cfgFile); os.IsNotExist(err) {
+		cfg = runSetup()
+	} else {
+		cfg = loadConfig()
+	}
+
+	// Parse flags — override config values if explicitly provided
+	themeFlag := flag.String("theme", "", "")
+	editorFlag := flag.String("editor", "", "")
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, `YapPad — a terminal journal & note-taking app
+		fmt.Fprintf(os.Stderr, `YapPad %s — a terminal note-taking app
 
 Usage:
-  yap [options] [vault-dir]
+  yap [flags] [.]
 
-Options:
-  --mode <mode>  Set default yap mode (default: all)
-                 Modes: all, daily, weekly, monthly, yearly
+  yap          open your configured vault
+  yap .        open current directory as vault (session only)
 
-  --editor <editor name> Run with nvim or nano
-  --version      Print version information
+Flags:
+  --theme <name>    override config theme for this session
+  --editor <name>   override config editor for this session
+  --version         print version and exit
+  --help            show this help
 
-Vault Directory:
-  Optional path to the notes directory.
-  Defaults to ~/.YapPad
+Themes:
+  default, gruvbox, nord, tokyonight, forest, solarized,
+  catppuccin, dracula, dusk, tide, moss, glacier, plum,
+  algae, sunny, stone
+
+Editors:
+  inbuilt, nano, nvim, vim, hx
+
+Config:
+  %s
 
 Keybindings:
-  ctrl+n       Create new note
-  ctrl+r       Rename selected note
-  ctrl+d       Delete selected note
-  ctrl+p       Toggle preview pane
-  ctrl+s       Cycle sort mode
-
-  0-4          Switch yap mode (0=all, 1=daily, 2=weekly, 3=monthly, 4=yearly)
-  tab          Cycle yap mode while creating a note
-  enter        Open selected note in editor
-  /            Filter notes
-
-Examples:
-  yap                        Open default vault in "all" mode
-  yap --mode daily           Open in daily journal mode
-  yap --mode weekly ~/notes  Open ~/notes in weekly mode
-`)
+  n          new file
+  r          rename file
+  d          delete file
+  enter      open in editor
+  ctrl+p     toggle preview
+  ctrl+s     cycle sort
+  /          filter
+  ?          toggle help
+  q          quit
+`, Version, configPath())
 	}
-
 	flag.Parse()
 
-	if *versionFlag {
-		fmt.Printf("YapPad version %s\n", Version)
-		os.Exit(0)
+	if *themeFlag != "" {
+		cfg.Theme = *themeFlag
+	}
+	if *editorFlag != "" {
+		cfg.Editor = *editorFlag
 	}
 
-	switch strings.ToLower(*editorFlag) {
-	case "", "nano", "nvim", "inbuilt":
-	default:
-		log.Fatalf("unknown editor: %s (use nano, nvim, or inbuilt)", *editorFlag)
-	}
-
-	switch strings.ToLower(*modeFlag) {
-	case "all", "0":
-		defaultYapMode = yapAll
-	case "daily", "1":
-		defaultYapMode = yapDaily
-	case "weekly", "2":
-		defaultYapMode = yapWeekly
-	case "monthly", "3":
-		defaultYapMode = yapMonthly
-	case "yearly", "4":
-		defaultYapMode = yapYearly
-	default:
-		log.Fatalf("unknown mode: %s (use all, daily, weekly, monthly, yearly)", *modeFlag)
-	}
-
-	if flag.NArg() > 0 {
-		vaultDir = flag.Arg(0)
-	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			log.Fatal(err)
+	// Override vault with current directory if `yap .` is used
+	if flag.NArg() > 0 && flag.Arg(0) == "." {
+		cwd, err := os.Getwd()
+		if err == nil {
+			cfg.Vault = cwd
 		}
-		vaultDir = filepath.Join(home, ".YapPad")
 	}
 
-	p := tea.NewProgram(initialModel(*editorFlag, *themeFlag), tea.WithAltScreen(), tea.WithMouseAllMotion())
+	vaultDir = cfg.Vault
+
+	p := tea.NewProgram(
+		initialModel(cfg.Editor, cfg.Theme),
+		tea.WithAltScreen(),
+	)
 	if _, err := p.Run(); err != nil {
-		fmt.Println("error:", err)
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)
 	}
 }

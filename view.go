@@ -81,22 +81,6 @@ func (m model) listItemStyles() list.DefaultItemStyles {
 	return s
 }
 
-func (m model) previewHeader() string {
-	title := m.previewHeaderStyle().Render(m.selectedFile)
-	line := lipgloss.NewStyle().Foreground(m.theme.Border).Render(
-		strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(title))),
-	)
-	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
-}
-
-func (m model) previewFooter() string {
-	info := m.previewFooterStyle().Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
-	line := lipgloss.NewStyle().Foreground(m.theme.Border).Render(
-		strings.Repeat("─", max(0, m.viewport.Width-lipgloss.Width(info))),
-	)
-	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
-}
-
 func (m model) View() string {
 	delegate := list.NewDefaultDelegate()
 	delegate.Styles = m.listItemStyles()
@@ -110,9 +94,8 @@ func (m model) View() string {
 	m.list.Styles.StatusBarFilterCount = lipgloss.NewStyle().Foreground(m.theme.Accent)
 
 	title := m.titleStyle().Render("YapPad")
-	modeStatus := m.statusStyle().Render(fmt.Sprintf("Mode: %s", m.yapMode))
 	sortStatus := m.statusStyle().Render(fmt.Sprintf("Sort: %s", m.sortMode))
-	header := lipgloss.JoinHorizontal(lipgloss.Center, title, modeStatus, sortStatus)
+	header := lipgloss.JoinHorizontal(lipgloss.Center, title, sortStatus)
 
 	deletePrompt := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render("  Are you sure you want to delete this file?") +
 		lipgloss.NewStyle().Foreground(m.theme.Secondary).Render(" (y/n)")
