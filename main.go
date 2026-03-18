@@ -15,7 +15,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-var Version = "v0.1.0-dev"
+var Version = "dev"
 
 func main() {
 	if len(os.Args) > 1 && os.Args[1] == "--version" {
