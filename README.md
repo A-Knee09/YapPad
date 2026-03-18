@@ -65,11 +65,11 @@ yap --help            # show help
 
 ### Notes & Files
 
-Press `n` to create a new note. You will be prompted for a filename, then an optional description. Pressing enter on an empty filename creates a date-stamped file. Pressing enter on an empty description skips it and falls back to showing the modified date.
+Press `ctrl n` to create a new note. You will be prompted for a filename, then an optional description. Pressing enter on an empty filename creates a date-stamped file. Pressing enter on an empty description skips it and falls back to showing the modified date.
 
 Each note can have a custom description shown below its title in the list. Descriptions are stored in `.metadesc/` as sidecar files and never modify note content.
 
-Press `r` to rename a note. You will be prompted for the new name and description. Skipping the description preserves the existing one.
+Press `ctrl r` to rename a note. You will be prompted for the new name and description. Skipping the description preserves the existing one.
 
 
 ### Themes
