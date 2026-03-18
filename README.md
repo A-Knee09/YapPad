@@ -83,7 +83,7 @@ Toggle with `ctrl+p`. Shows syntax-highlighted text and markdown previews, and i
 
 ### Themes
 
-16 built-in themes: `default`, `gruvbox`, `nord`, `tokyonight`, `forest`, `solarized`, `catppuccin`, `dracula`, `dusk`, `tide`, `moss`, `glacier`, `plum`, `algae`, `sunny`, `stone`.
+16 built-in themes: `default`, `gruvbox`, `nord`, `tokyonight`, `forest`, `solarized`, `dracula`, `dusk`, `tide`, `moss`, `glacier`, `plum`, `algae`, `sunny`, `stone`.
 
 Set in config or override per session with `--theme <name>`.
 

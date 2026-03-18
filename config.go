@@ -108,7 +108,7 @@ func runSetup() Config {
 	// Theme
 	validThemes := map[string]bool{
 		"default": true, "gruvbox": true, "nord": true, "tokyonight": true,
-		"forest": true, "solarized": true, "catppuccin": true, "dracula": true,
+		"forest": true, "solarized": true, "dracula": true,
 		"dusk": true, "tide": true, "moss": true, "glacier": true,
 		"plum": true, "algae": true, "sunny": true, "stone": true,
 	}

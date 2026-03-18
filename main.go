@@ -51,7 +51,7 @@ Flags:
 
 Themes:
   default, gruvbox, nord, tokyonight, forest, solarized,
-  catppuccin, dracula, dusk, tide, moss, glacier, plum,
+  dracula, dusk, tide, moss, glacier, plum,
   algae, sunny, stone
 
 Editors:
