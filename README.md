@@ -6,16 +6,10 @@ A terminal-based note-taking app built with Go and Bubble Tea.
 
 ## Showcase
 
-https://github.com/user-attachments/assets/c601849c-5179-4787-9b64-93ca44c7f397
-
-## Preview
-
-<img width="1588" height="815" alt="MD render" src="https://github.com/user-attachments/assets/22e89bb2-56a3-4057-88ca-f342b9a2c35e" />
-
-<img width="1278" height="748" alt="Preview" src="https://github.com/user-attachments/assets/56d7f0c6-4223-4ad9-a9cc-be301fac1aa3" />
+https://github.com/user-attachments/assets/cbe425a2-4a54-4b5e-a331-47501feb353d
 
 > [!IMPORTANT]
-> - Tested only on Linux
+> - Tested only on Linux and MacOS
 > - Image preview requires a Kitty-compatible terminal (Kitty, WezTerm) and `chafa` installed
 > - Image preview might take some time to load initially or on terminal resize, but not again
 
@@ -77,15 +71,78 @@ Each note can have a custom description shown below its title in the list. Descr
 
 Press `r` to rename a note. You will be prompted for the new name and description. Skipping the description preserves the existing one.
 
-### Preview Pane
-
-Toggle with `ctrl+p`. Shows syntax-highlighted text and markdown previews, and inline image previews for supported formats. Auto-hides if the terminal is too narrow. Image preview requires `chafa` and a Kitty-compatible terminal.
 
 ### Themes
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/cf25288b-df85-4d16-92d1-8901aacac6d3" alt="Default" width="450"/></td>
+    <td><img src="https://github.com/user-attachments/assets/b32972f7-2489-4ab1-9bf8-f23506ce01b4" alt="Dracula" width="450"/></td>
+  </tr>
+  <tr>
+    <td align="center">Default</td>
+    <td align="center">Dracula</td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/d1445109-5337-4dbd-949f-6f1f1ca83e2c" alt="Dusk" width="450"/></td>
+    <td><img src="https://github.com/user-attachments/assets/8aa1c819-3deb-4d0c-858b-c75a0f01865c" alt="Forest" width="450"/></td>
+  </tr>
+  <tr>
+    <td align="center">Dusk</td>
+    <td align="center">Forest</td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/d6fa6c25-0c28-4d04-bcd4-fd466e6d3b6a" alt="Glacier" width="450"/></td>
+    <td><img src="https://github.com/user-attachments/assets/7a1b0049-8f8b-4cea-83e2-3f4a6e66a2ff" alt="Gruvbox" width="450"/></td>
+  </tr>
+  <tr>
+    <td align="center">Glacier</td>
+    <td align="center">Gruvbox</td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/1e25cae9-64f8-41ba-b765-ea23bafe4c3e" alt="Moss" width="450"/></td>
+    <td><img src="https://github.com/user-attachments/assets/a9893933-8962-4c21-902e-cec55d77eaa1" alt="Nord" width="450"/></td>
+  </tr>
+  <tr>
+    <td align="center">Moss</td>
+    <td align="center">Nord</td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/c0d0328c-144d-4634-af23-f5a10d882b9d" alt="Plum" width="450"/></td>
+    <td><img src="https://github.com/user-attachments/assets/5cd6360e-f2ff-4aa5-89d5-a0190d9434c2" alt="Solarized" width="450"/></td>
+  </tr>
+  <tr>
+    <td align="center">Plum</td>
+    <td align="center">Solarized</td>
+  </tr>
+</table>
+<table>
+  <tr>
+    <td><img src="https://github.com/user-attachments/assets/67e5a2c8-3037-40a7-ab8c-dd98a39d0461" alt="Tide" width="450"/></td>
+    <td><img src="https://github.com/user-attachments/assets/ffec77c5-e23c-4335-8262-085fbad83276" alt="Tokyonight" width="450"/></td>
+  </tr>
+  <tr>
+    <td align="center">Tide</td>
+    <td align="center">Tokyonight</td>
+  </tr>
+</table>
+
 
 16 built-in themes: `default`, `gruvbox`, `nord`, `tokyonight`, `forest`, `solarized`, `dracula`, `dusk`, `tide`, `moss`, `glacier`, `plum`, `algae`, `sunny`, `stone`.
 
 Set in config or override per session with `--theme <name>`.
+
+### Preview Pane
+
+Toggle with `ctrl+p`. Shows syntax-highlighted text and markdown previews, and inline image previews for supported formats. Auto-hides if the terminal is too narrow. Image preview requires `chafa` and a Kitty-compatible terminal.
+
 
 ### Sorting
 
