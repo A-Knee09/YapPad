@@ -70,7 +70,7 @@ var themes = map[string]Theme{
 	"solarized": {
 		Primary:   lipgloss.Color("136"), // yellow
 		Secondary: lipgloss.Color("37"),  // cyan
-		Border:    lipgloss.Color("240"), // gray
+		Border:    lipgloss.Color("136"), // gray
 		Accent:    lipgloss.Color("166"), // orange
 		Muted:     lipgloss.Color("130"),
 		MoreMuted: lipgloss.Color("66"),
@@ -89,11 +89,11 @@ var themes = map[string]Theme{
 	// 	SubText:   lipgloss.Color("248"),
 	// },
 	"dracula": {
-		Primary:   lipgloss.Color("212"), // pink
+		Primary:   lipgloss.Color("175"), // pink
 		Secondary: lipgloss.Color("141"), // purple
-		Border:    lipgloss.Color("239"),
+		Border:    lipgloss.Color("204"),
 		Accent:    lipgloss.Color("153"), // cyan
-		Muted:     lipgloss.Color("81"),
+		Muted:     lipgloss.Color("204"),
 		MoreMuted: lipgloss.Color("236"),
 		Text:      lipgloss.Color("255"),
 		SubText:   lipgloss.Color("246"),
@@ -148,16 +148,16 @@ var themes = map[string]Theme{
 		Text:      lipgloss.Color("255"), // bright white
 		SubText:   lipgloss.Color("182"), // light lavender
 	},
-	"algae": {
-		Primary:   lipgloss.Color("107"), // #628141 green
-		Secondary: lipgloss.Color("252"), // #E5D9B6 cream
-		Border:    lipgloss.Color("238"), // #40513B dark green
-		Accent:    lipgloss.Color("209"), // #E67E22 orange
-		Muted:     lipgloss.Color("107"), // green muted
-		MoreMuted: lipgloss.Color("238"), // dark green
-		Text:      lipgloss.Color("252"), // cream
-		SubText:   lipgloss.Color("245"), // muted cream
-	},
+	// "algae": {
+	// 	Primary:   lipgloss.Color("107"), // #628141 green
+	// 	Secondary: lipgloss.Color("252"), // #E5D9B6 cream
+	// 	Border:    lipgloss.Color("238"), // #40513B dark green
+	// 	Accent:    lipgloss.Color("209"), // #E67E22 orange
+	// 	Muted:     lipgloss.Color("107"), // green muted
+	// 	MoreMuted: lipgloss.Color("238"), // dark green
+	// 	Text:      lipgloss.Color("252"), // cream
+	// 	SubText:   lipgloss.Color("245"), // muted cream
+	// },
 }
 
 func getTheme(name string) Theme {
