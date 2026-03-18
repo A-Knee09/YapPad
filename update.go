@@ -115,31 +115,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.Button != tea.MouseButtonWheelUp && msg.Button != tea.MouseButtonWheelDown {
 			return m, nil
 		}
-
-		var listWidth int
 		if m.showPreview {
-			listWidth = m.width / 3
-		} else {
-			listWidth = m.width - 2
-		}
-
-		if msg.X < listWidth {
-			switch msg.Button {
-			case tea.MouseButtonWheelUp:
-				m.list.CursorUp()
-			case tea.MouseButtonWheelDown:
-				m.list.CursorDown()
-			}
-			if m.list.SelectedItem() != nil {
-				i := m.list.SelectedItem().(item)
-				if i.title != m.selectedFile {
-					m.selectedFile = i.title
-					path := m.resolveFilePath(i.title)
-					m.loadingFile = true
-					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(path))
-				}
-			}
-		} else if m.showPreview && msg.X > listWidth {
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
 				m.viewport.ScrollUp(1)
@@ -157,9 +133,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.SetContent("")
 		if m.selectedFile != "" && m.showPreview {
 			m.loadingFile = true
-			return m, tea.Batch(tea.EnableMouseAllMotion, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+			return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 		}
-		return m, tea.EnableMouseAllMotion
+		return m, nil
 
 	case tea.KeyMsg:
 

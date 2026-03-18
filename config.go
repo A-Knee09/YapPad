@@ -110,10 +110,10 @@ func runSetup() Config {
 		"default": true, "gruvbox": true, "nord": true, "tokyonight": true,
 		"forest": true, "solarized": true, "dracula": true,
 		"dusk": true, "tide": true, "moss": true, "glacier": true,
-		"plum": true, "algae": true, "sunny": true, "stone": true,
+		"plum": true,
 	}
 	for {
-		fmt.Print("Which theme? (default, gruvbox, nord, tokyonight, forest, solarized, catppuccin, dracula, dusk, tide, moss, glacier, plum, algae, sunny, stone) [default]: ")
+		fmt.Print("Which theme? (default, gruvbox, nord, tokyonight, forest, solarized, dracula, dusk, tide, moss, glacier, plum) [default]: ")
 		theme, _ := reader.ReadString('\n')
 		theme = strings.TrimSpace(theme)
 		if theme == "" {

@@ -51,8 +51,7 @@ Flags:
 
 Themes:
   default, gruvbox, nord, tokyonight, forest, solarized,
-  dracula, dusk, tide, moss, glacier, plum,
-  algae, sunny, stone
+  dracula, dusk, tide, moss, glacier, plum
 
 Editors:
   inbuilt, nano, nvim, vim, hx
@@ -94,6 +93,7 @@ Keybindings:
 	p := tea.NewProgram(
 		initialModel(cfg.Editor, cfg.Theme),
 		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
 	)
 	if _, err := p.Run(); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
