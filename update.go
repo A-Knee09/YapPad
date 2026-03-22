@@ -130,12 +130,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case fileEditedMsg:
 		m.list.SetItems(listFiles(m.sortMode))
-		m.viewport.SetContent("")
+		for i, it := range m.list.Items() {
+			if it.(item).title == m.selectedFile {
+				m.list.Select(i)
+				break
+			}
+		}
 		if m.selectedFile != "" && m.showPreview {
 			m.loadingFile = true
-			return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+			return m, tea.Batch(tea.EnableMouseAllMotion, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 		}
-		return m, nil
+		return m, tea.EnableMouseAllMotion
 
 	case tea.KeyMsg:
 
@@ -168,12 +173,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					os.Remove(path)
 					deleteMetaDesc(path)
 					m.list.SetItems(listFiles(m.sortMode))
-					statusCmd := m.list.NewStatusMessage("Deleted " + it.title)
 					m.deleting = false
-					return m, statusCmd
+					m.selectedFile = ""
+					m.showingImage = false
+					m.viewport.SetContent("")
+					statusCmd := m.list.NewStatusMessage("Deleted " + it.title)
+					return m, tea.Batch(statusCmd, clearKittyGraphics())
 				}
-				m.deleting = false
-				return m, nil
 			case "n", "N", "esc":
 				m.deleting = false
 				return m, nil
