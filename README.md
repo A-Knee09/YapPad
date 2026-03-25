@@ -8,6 +8,8 @@ A terminal-based note-taking app built with Go and Bubble Tea.
 
 https://github.com/user-attachments/assets/cbe425a2-4a54-4b5e-a331-47501feb353d
 
+<img width="1920" height="1080" alt="260326_00h48m57s_screenshot" src="https://github.com/user-attachments/assets/82eb537b-716f-49ae-bf9b-c334eb67b2b0" />
+
 > [!IMPORTANT]
 > - Tested only on Linux and MacOS
 > - Image preview requires a Kitty-compatible terminal (Kitty, WezTerm) and `chafa` installed
