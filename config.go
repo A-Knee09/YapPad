@@ -70,7 +70,7 @@ func runSetup() Config {
 	home, _ := os.UserHomeDir()
 	defaultVault := filepath.Join(home, ".YapPad")
 
-	fmt.Println("Welcome to YapPad! Let's set things up.\n")
+	fmt.Println("Welcome to YapPad! Let's set things up.")
 
 	// Vault
 	fmt.Printf("Where do you want to store your notes? (Default directory [%s]) : ", defaultVault)
@@ -87,22 +87,13 @@ func runSetup() Config {
 	cfg.Vault = vault
 
 	// Editor
-	validEditors := map[string]bool{
-		"inbuilt": true, "nano": true, "nvim": true, "vim": true, "hx": true,
-	}
-	for {
-		fmt.Print("Which editor? (inbuilt, nano, nvim, vim, hx) [inbuilt]: ")
-		editor, _ := reader.ReadString('\n')
-		editor = strings.TrimSpace(editor)
-		if editor == "" {
-			cfg.Editor = "inbuilt"
-			break
-		}
-		if validEditors[editor] {
-			cfg.Editor = editor
-			break
-		}
-		fmt.Printf("  unknown editor %q, try again\n", editor)
+	fmt.Print("Which editor? (inbuilt, nano, nvim, vim, helix, or any editor in your $PATH) [inbuilt]: ")
+	editor, _ := reader.ReadString('\n')
+	editor = strings.TrimSpace(editor)
+	if editor == "" {
+		cfg.Editor = "inbuilt"
+	} else {
+		cfg.Editor = editor
 	}
 
 	// Theme

@@ -48,13 +48,8 @@ func getEditor() string {
 }
 
 func openInEditor(path, editor string) tea.Cmd {
-	var e string
-	switch editor {
-	case "nano":
-		e = "nano"
-	case "nvim":
-		e = "nvim"
-	default:
+	e := editor
+	if e == "" {
 		e = getEditor()
 	}
 
