@@ -9,6 +9,7 @@ type keyMap struct {
 	TogglePreview  key.Binding
 	CycleSort      key.Binding
 	ToggleHelpMenu key.Binding
+	FullPreview    key.Binding
 }
 
 func newListKeyMap() *keyMap {
@@ -19,5 +20,6 @@ func newListKeyMap() *keyMap {
 		TogglePreview:  key.NewBinding(key.WithKeys("ctrl+p"), key.WithHelp("ctrl+p", "preview")),
 		CycleSort:      key.NewBinding(key.WithKeys("ctrl+s"), key.WithHelp("ctrl+s", "sort")),
 		ToggleHelpMenu: key.NewBinding(key.WithKeys("ctrl+h"), key.WithHelp("ctrl+h", "Toggle Help")),
+		FullPreview:    key.NewBinding(key.WithKeys("ctrl+f"), key.WithHelp("ctrl+f", "Reader View")),
 	}
 }

@@ -123,15 +123,30 @@ func (m model) View() string {
 		)
 	}
 
+	// if m.editorMode {
+	// 	editorStatus := m.statusStyle().Render("ctrl+s: save  ctrl+q: close")
+	// 	return fmt.Sprintf(
+	// 		"\n%s\n\n%s",
+	// 		lipgloss.JoinHorizontal(lipgloss.Center, title, editorStatus),
+	// 		m.editorContent.View(),
+	// 	)
+	// }
+
 	if m.editorMode {
-		editorStatus := m.statusStyle().Render("ctrl+s: save  ctrl+q: close")
-		return fmt.Sprintf(
-			"\n%s\n\n%s",
+		if m.editorPreview {
+			previewView := fmt.Sprintf("%s\n%s\n%s", m.previewHeader(), m.viewport.View(), m.previewFooter())
+			status := m.statusStyle().Render("ctrl+f: back to editing  ctrl+q: close")
+			return fmt.Sprintf("\n%s\n\n%s",
+				lipgloss.JoinHorizontal(lipgloss.Center, title, status),
+				previewView,
+			)
+		}
+		editorStatus := m.statusStyle().Render("ctrl+s: save  ctrl+f: preview  ctrl+q: close")
+		return fmt.Sprintf("\n%s\n\n%s",
 			lipgloss.JoinHorizontal(lipgloss.Center, title, editorStatus),
 			m.editorContent.View(),
 		)
 	}
-
 	if m.inputMode {
 		if m.inputStep == 0 {
 			return fmt.Sprintf(
@@ -149,7 +164,12 @@ func (m model) View() string {
 			m.list.View(),
 		)
 	}
-
+	if m.fullPreview {
+		m.viewport.Width = m.width - 4
+		m.viewport.Height = m.height - 6
+		previewView := fmt.Sprintf("%s\n%s\n%s", m.previewHeader(), m.viewport.View(), m.previewFooter())
+		return fmt.Sprintf("\n%s\n\n%s", header, previewView)
+	}
 	if m.showPreview {
 		listWidth := m.width / 2
 		spacer := strings.Repeat(" ", max(0, listWidth-lipgloss.Width(m.list.View())))

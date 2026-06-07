@@ -112,6 +112,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.showingImage = true
 
 	case tea.MouseMsg:
+		if m.fullPreview {
+			var vpCmd tea.Cmd
+			m.viewport, vpCmd = m.viewport.Update(msg)
+			return m, vpCmd
+		}
 		if msg.Button != tea.MouseButtonWheelUp && msg.Button != tea.MouseButtonWheelDown {
 			return m, nil
 		}
@@ -143,7 +148,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.EnableMouseAllMotion
 
 	case tea.KeyMsg:
-
+		if m.fullPreview {
+			if msg.String() == "ctrl+f" {
+				m.fullPreview = false
+				listWidth := m.width / 2
+				m.viewport.Width = m.width - listWidth - 6
+				m.viewport.Height = m.height - 10
+				if m.selectedFile != "" {
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				}
+				return m, nil
+			}
+			// only allow viewport scrolling
+			var vpCmd tea.Cmd
+			m.viewport, vpCmd = m.viewport.Update(msg)
+			return m, vpCmd
+		}
 		// EDITOR MODE
 		if m.editorMode {
 			switch msg.String() {
@@ -151,11 +172,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, saveEditorContent(m.editorFile, m.editorContent.Value())
 			case "ctrl+q":
 				m.editorMode = false
+				m.editorPreview = false
 				m.editorContent.Blur()
+				listWidth := m.width / 2
+				m.viewport.Width = m.width - listWidth - 6
+				m.viewport.Height = m.height - 10
 				m.list.SetItems(listFiles(m.sortMode))
-				if m.showPreview {
+				if m.showPreview && m.selectedFile != "" {
 					m.loadingFile = true
 					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				}
+				return m, nil
+			case "ctrl+f":
+				m.editorPreview = !m.editorPreview
+				if m.editorPreview {
+					m.viewport.Width = m.width - 4
+					m.viewport.Height = m.height - 6
+					rendered := renderMarkdown(m.editorContent.Value())
+					wrapped := wordwrap.String(rendered, m.viewport.Width)
+					m.viewport.SetContent(wrapped)
+					m.viewport.GotoTop()
+				} else {
+					listWidth := m.width / 2
+					m.viewport.Width = m.width - listWidth - 6
+					m.viewport.Height = m.height - 10
 				}
 				return m, nil
 			}
@@ -385,8 +425,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Batch(resizeCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 			}
 			return m, resizeCmd
-
+		case key.Matches(msg, m.keys.FullPreview):
+			if m.selectedFile != "" && isImageFile(m.resolveFilePath(m.selectedFile)) {
+				return m, nil
+			}
+			m.fullPreview = !m.fullPreview
+			if m.fullPreview {
+				m.viewport.Width = m.width - 4
+				m.viewport.Height = m.height - 6
+				if m.selectedFile != "" {
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				}
+			} else {
+				listWidth := m.width / 2
+				m.viewport.Width = m.width - listWidth - 6
+				m.viewport.Height = m.height - 10
+				if m.selectedFile != "" {
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				}
+			}
+			return m, nil
 		case msg.String() == "enter":
+
 			if m.list.FilterState() == list.Filtering {
 				break
 			}

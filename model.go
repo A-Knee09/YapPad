@@ -37,6 +37,8 @@ type model struct {
 	showPreview       bool
 	manualHidePreview bool
 	showingImage      bool
+	fullPreview       bool
+	editorPreview     bool
 	width             int
 	height            int
 	sortMode          sortMode
@@ -72,6 +74,7 @@ func initialModel(editor string, themeName string) model {
 			listKeys.Rename,
 			listKeys.Delete,
 			listKeys.TogglePreview,
+			listKeys.FullPreview,
 			listKeys.ToggleHelpMenu,
 			listKeys.CycleSort,
 		}

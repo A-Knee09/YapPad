@@ -64,6 +64,7 @@ Keybindings:
   r          rename file
   d          delete file
   enter      open in editor
+  ctrl+f     full preview of file
   ctrl+p     toggle preview
   ctrl+s     cycle sort
   /          filter
