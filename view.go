@@ -123,15 +123,6 @@ func (m model) View() string {
 		)
 	}
 
-	// if m.editorMode {
-	// 	editorStatus := m.statusStyle().Render("ctrl+s: save  ctrl+q: close")
-	// 	return fmt.Sprintf(
-	// 		"\n%s\n\n%s",
-	// 		lipgloss.JoinHorizontal(lipgloss.Center, title, editorStatus),
-	// 		m.editorContent.View(),
-	// 	)
-	// }
-
 	if m.editorMode {
 		if m.editorPreview {
 			previewView := fmt.Sprintf("%s\n%s\n%s", m.previewHeader(), m.viewport.View(), m.previewFooter())

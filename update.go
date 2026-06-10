@@ -167,6 +167,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		// EDITOR MODE
 		if m.editorMode {
+
 			switch msg.String() {
 			case "ctrl+s":
 				return m, saveEditorContent(m.editorFile, m.editorContent.Value())
@@ -183,15 +184,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 				}
 				return m, nil
+				// case "ctrl+f":
+				// 	m.editorPreview = !m.editorPreview
+				// 	if m.editorPreview {
+				// 		m.viewport.Width = m.width - 4
+				// 		m.viewport.Height = m.height - 6
+				// 		rendered := renderMarkdown(m.editorContent.Value())
+				// 		wrapped := wordwrap.String(rendered, m.viewport.Width)
+				// 		m.viewport.SetContent(wrapped)
+				// 		line := m.editorContent.Line()
+				// 		m.viewport.SetYOffset(max(0, line-m.viewport.Height/2))
+				// 	} else {
+				// 		listWidth := m.width / 2
+				// 		m.viewport.Width = m.width - listWidth - 6
+				// 		m.viewport.Height = m.height - 10
+				// 	}
+				// 	return m, nil
+			// NOTE: Claude generated this solution, I wanted the preview to be done on the line where inbuilt editor cursor is, the cursor is present on is on the center of the preview screen
 			case "ctrl+f":
 				m.editorPreview = !m.editorPreview
 				if m.editorPreview {
 					m.viewport.Width = m.width - 4
 					m.viewport.Height = m.height - 6
-					rendered := renderMarkdown(m.editorContent.Value())
+					content := m.editorContent.Value()
+					rendered := renderMarkdown(content)
 					wrapped := wordwrap.String(rendered, m.viewport.Width)
 					m.viewport.SetContent(wrapped)
 					m.viewport.GotoTop()
+
+					// count rendered lines up to cursor position
+					cursorPos := m.editorContent.LineInfo().CharOffset
+					lineNum := m.editorContent.Line()
+					rawLines := strings.Split(content, "\n")
+					textUpToCursor := strings.Join(rawLines[:min(lineNum, len(rawLines))], "\n")
+					renderedUpToCursor := renderMarkdown(textUpToCursor)
+					wrappedUpToCursor := wordwrap.String(renderedUpToCursor, m.viewport.Width)
+					renderedLine := strings.Count(wrappedUpToCursor, "\n")
+					_ = cursorPos
+					m.viewport.SetYOffset(max(0, renderedLine-(m.viewport.Height/2)))
 				} else {
 					listWidth := m.width / 2
 					m.viewport.Width = m.width - listWidth - 6
