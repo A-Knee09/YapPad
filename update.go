@@ -33,6 +33,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			clearCmd = clearKittyGraphics()
 		}
 
+		wasFullPreview := m.fullPreview
+		m.fullPreview = false
+
 		const minWidthForPreview = 90
 
 		if msg.Width < minWidthForPreview {
@@ -49,44 +52,48 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			listWidth = msg.Width - 2
 			viewportWidth = 0
 		}
-		m.viewport.Width = viewportWidth
-		m.viewport.Height = msg.Height - 10
 		m.list.SetSize(listWidth, msg.Height-5)
 
 		if !m.ready {
 			m.viewport = viewport.New(viewportWidth, msg.Height-10)
 			m.ready = true
+		}
+
+		// NOTE: These two if conditions basically toggle fullPreview when window is being resized either on menu or inbuilt editor
+		if wasFullPreview && m.selectedFile != "" {
+			m.fullPreview = true
+			m.viewport.Width = m.width - 4
+			m.viewport.Height = m.height - 6
+			m.loadingFile = true
+			return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+		}
+		if m.editorPreview {
+			m.viewport.Width = m.width - 4
+			m.viewport.Height = m.height - 6
+			content := m.editorContent.Value()
+			rendered := renderMarkdown(content)
+			wrapped := wordwrap.String(rendered, m.viewport.Width)
+			m.viewport.SetContent(wrapped)
+			m.viewport.GotoTop()
+			return m, clearCmd
+		}
+
+		m.viewport.Width = viewportWidth
+		m.viewport.Height = msg.Height - 10
+
+		if m.showPreview && m.selectedFile == "" {
 			if m.list.SelectedItem() != nil {
 				i := m.list.SelectedItem().(item)
 				m.selectedFile = i.title
-				if m.showPreview {
-					m.loadingFile = true
-					return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
-				}
-			}
-		} else {
-			m.viewport.Width = viewportWidth
-			m.viewport.Height = msg.Height - 10
-			if m.showPreview && m.selectedFile == "" {
-				if m.list.SelectedItem() != nil {
-					i := m.list.SelectedItem().(item)
-					m.selectedFile = i.title
-					if isImageFile(m.resolveFilePath(i.title)) {
-						m.showingImage = true
-					}
-					m.loadingFile = true
-					return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
-				}
-			} else if m.showPreview && m.selectedFile != "" {
-				if isImageFile(m.resolveFilePath(m.selectedFile)) {
-					m.showingImage = true
-				}
 				m.loadingFile = true
-				return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
 			}
+		} else if m.showPreview && m.selectedFile != "" {
+			m.loadingFile = true
+			return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 		}
-		return m, clearCmd
 
+		return m, clearCmd
 	case spinner.TickMsg:
 		if m.loadingFile {
 			m.spinner, cmd = m.spinner.Update(msg)
