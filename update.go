@@ -157,7 +157,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.settingsOpen {
 			switch msg.String() {
-			case "ctrl+t", "esc":
+			case "esc":
 				// cancel, restore original theme/editor
 				m.theme = getTheme(m.tempTheme)
 				m.editor = m.tempEditor
@@ -195,7 +195,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		if m.fullPreview {
-			if msg.String() == "ctrl+f" {
+			if msg.String() == "f" {
 				m.fullPreview = false
 				listWidth := m.width / 2
 				m.viewport.Width = m.width - listWidth - 6
@@ -230,22 +230,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 				}
 				return m, nil
-				// case "ctrl+f":
-				// 	m.editorPreview = !m.editorPreview
-				// 	if m.editorPreview {
-				// 		m.viewport.Width = m.width - 4
-				// 		m.viewport.Height = m.height - 6
-				// 		rendered := renderMarkdown(m.editorContent.Value())
-				// 		wrapped := wordwrap.String(rendered, m.viewport.Width)
-				// 		m.viewport.SetContent(wrapped)
-				// 		line := m.editorContent.Line()
-				// 		m.viewport.SetYOffset(max(0, line-m.viewport.Height/2))
-				// 	} else {
-				// 		listWidth := m.width / 2
-				// 		m.viewport.Width = m.width - listWidth - 6
-				// 		m.viewport.Height = m.height - 10
-				// 	}
-				// 	return m, nil
+
 			// NOTE: Claude generated this solution, I wanted the preview to be done on the line where inbuilt editor cursor is, the cursor is present on is on the center of the preview screen
 			case "ctrl+f":
 				m.editorPreview = !m.editorPreview

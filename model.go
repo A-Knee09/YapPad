@@ -32,40 +32,53 @@ var (
 )
 
 type model struct {
-	list              list.Model
-	input             textinput.Model
-	descInput         textinput.Model
-	inputStep         int
-	viewport          viewport.Model
-	keys              *keyMap
-	inputMode         bool
-	renameMode        bool
-	renameTarget      string
-	ready             bool
+	// UI components
+	list      list.Model
+	viewport  viewport.Model
+	input     textinput.Model
+	descInput textinput.Model
+	spinner   spinner.Model
+
+	// Editor
+	editorMode    bool
+	editorFile    string
+	editorContent textarea.Model
+	editorPreview bool
+
+	// State flags
+	inputMode    bool
+	inputStep    int
+	renameMode   bool
+	renameTarget string
+	deleting     bool
+	settingsOpen bool
+	settingsTab  int
+	settingsSave bool
+	fullPreview  bool
+
+	// Preview
 	selectedFile      string
 	showPreview       bool
 	manualHidePreview bool
 	showingImage      bool
-	fullPreview       bool
-	editorPreview     bool
-	width             int
-	height            int
-	sortMode          sortMode
-	deleting          bool
-	editor            string
-	editorMode        bool
-	editorFile        string
-	editorContent     textarea.Model
-	spinner           spinner.Model
 	loadingFile       bool
-	theme             Theme
-	settingsOpen      bool
-	settingsTab       int // 0 = theme, 1 = editor
-	themeIndex        int
-	editorIndex       int
-	settingsSave      bool
-	tempTheme         string
-	tempEditor        string
+
+	// Settings
+	themeIndex  int
+	editorIndex int
+	tempTheme   string
+	tempEditor  string
+
+	// Terminal size
+	width  int
+	height int
+
+	// Config
+	theme    Theme
+	editor   string
+	sortMode sortMode
+	keys     *keyMap
+	ready    bool
 }
 
 func (m model) Init() tea.Cmd { return nil }
