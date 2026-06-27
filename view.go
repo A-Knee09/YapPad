@@ -82,7 +82,7 @@ func (m model) listItemStyles() list.DefaultItemStyles {
 }
 
 func (m model) settingsOverlay() string {
-	// Theme list
+	// Theme column
 	var themeSb strings.Builder
 	for i, t := range themeOptions {
 		if i == m.themeIndex && m.settingsTab == 0 {
@@ -97,7 +97,7 @@ func (m model) settingsOverlay() string {
 		}
 	}
 
-	// Palette swatches
+	// Palette column
 	var paletteSb strings.Builder
 	swatches := []struct {
 		name  string
@@ -118,27 +118,7 @@ func (m model) settingsOverlay() string {
 		paletteSb.WriteString("\n")
 	}
 
-	themeTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Theme")
-	paletteTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Palette")
-	if m.settingsTab == 0 {
-		themeTitle = lipgloss.NewStyle().Bold(true).Foreground(m.theme.Primary).Render("Theme")
-	}
-
-	themeCol := lipgloss.JoinVertical(lipgloss.Left, themeTitle, "", themeSb.String())
-	paletteCol := lipgloss.JoinVertical(lipgloss.Left, paletteTitle, "", paletteSb.String())
-	themeAndPalette := lipgloss.JoinHorizontal(lipgloss.Top, themeCol, "    ", paletteCol)
-
-	themeBorderColor := m.theme.Border
-	if m.settingsTab == 0 {
-		themeBorderColor = m.theme.Primary
-	}
-	themeBox := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(themeBorderColor).
-		Padding(1, 2).
-		Render(themeAndPalette)
-
-	// Editor box
+	// Editor column
 	var editorSb strings.Builder
 	for i, e := range editorOptions {
 		if i == m.editorIndex && m.settingsTab == 1 {
@@ -153,22 +133,30 @@ func (m model) settingsOverlay() string {
 		}
 	}
 
+	// Column titles
+	themeTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Theme")
+	paletteTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Palette")
 	editorTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Editor")
+	if m.settingsTab == 0 {
+		themeTitle = lipgloss.NewStyle().Bold(true).Foreground(m.theme.Primary).Render("Theme")
+	}
 	if m.settingsTab == 1 {
 		editorTitle = lipgloss.NewStyle().Bold(true).Foreground(m.theme.Primary).Render("Editor")
 	}
 
-	editorBorderColor := m.theme.Border
-	if m.settingsTab == 1 {
-		editorBorderColor = m.theme.Primary
-	}
-	editorBox := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(editorBorderColor).
-		Padding(1, 2).
-		Render(editorTitle + "\n\n" + editorSb.String())
+	divider := lipgloss.NewStyle().Foreground(m.theme.Border).Render("  │  ")
 
-	// Save + footer
+	themeCol := lipgloss.JoinVertical(lipgloss.Left, themeTitle, "", themeSb.String())
+	paletteCol := lipgloss.JoinVertical(lipgloss.Left, paletteTitle, "", paletteSb.String())
+	editorCol := lipgloss.JoinVertical(lipgloss.Left, editorTitle, "", editorSb.String())
+
+	inner := lipgloss.JoinHorizontal(lipgloss.Top,
+		themeCol, divider,
+		paletteCol, divider,
+		editorCol,
+	)
+
+	// Save toggle + footer
 	saveStr := "[ ] Save to config"
 	if m.settingsSave {
 		saveStr = "[●] Save to config"
@@ -176,8 +164,13 @@ func (m model) settingsOverlay() string {
 	save := lipgloss.NewStyle().Foreground(m.theme.Secondary).Render(saveStr)
 	footer := lipgloss.NewStyle().Foreground(m.theme.Muted).Render("tab: switch  s: save  enter: confirm  esc: cancel")
 
-	boxes := lipgloss.JoinHorizontal(lipgloss.Top, themeBox, "  ", editorBox)
-	content := lipgloss.JoinVertical(lipgloss.Left, boxes, "\n"+save, footer)
+	box := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(m.theme.Border).
+		Padding(1, 3).
+		Render(inner)
+
+	content := lipgloss.JoinVertical(lipgloss.Left, box, "\n"+save, footer)
 
 	return lipgloss.Place(
 		m.width, m.height,
