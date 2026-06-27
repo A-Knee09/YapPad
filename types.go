@@ -9,8 +9,7 @@ import (
 // NOTE: Inbuilt editor using textarea component
 
 type (
-	editorSavedMsg  struct{}
-	editorClosedMsg struct{}
+	editorSavedMsg struct{}
 )
 
 // Tea messages

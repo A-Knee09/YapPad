@@ -49,7 +49,7 @@ func clearKittyGraphics() tea.Cmd {
 	}
 }
 
-// HACK: Getting ascpect ratio helps me to draw 9:16,4:5 images away from list, with better height. Without this it looked like they were stuck next to each other
+// HACK: Getting ascpect ratio helps me to draw 9:16,4:5 images away from list, with better height. Without this it looked like the edge of list and edge of image collapsed together
 func getImageAspectRatio(path string) (float64, error) {
 	f, err := os.Open(path)
 	if err != nil {

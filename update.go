@@ -155,6 +155,45 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.EnableMouseAllMotion
 
 	case tea.KeyMsg:
+		if m.settingsOpen {
+			switch msg.String() {
+			case "ctrl+t", "esc":
+				// cancel, restore original theme/editor
+				m.theme = getTheme(m.tempTheme)
+				m.editor = m.tempEditor
+				m.settingsOpen = false
+			case "enter":
+				// confirm
+				if m.settingsSave {
+					cfg := loadConfig()
+					cfg.Theme = themeOptions[m.themeIndex]
+					cfg.Editor = editorOptions[m.editorIndex]
+					writeConfig(cfg)
+				}
+				m.settingsOpen = false
+			case "tab":
+				m.settingsTab = (m.settingsTab + 1) % 2
+			case "s":
+				m.settingsSave = !m.settingsSave
+			case "up", "k":
+				if m.settingsTab == 0 {
+					m.themeIndex = (m.themeIndex - 1 + len(themeOptions)) % len(themeOptions)
+					m.theme = getTheme(themeOptions[m.themeIndex])
+				} else {
+					m.editorIndex = (m.editorIndex - 1 + len(editorOptions)) % len(editorOptions)
+					m.editor = editorOptions[m.editorIndex]
+				}
+			case "down", "j":
+				if m.settingsTab == 0 {
+					m.themeIndex = (m.themeIndex + 1) % len(themeOptions)
+					m.theme = getTheme(themeOptions[m.themeIndex])
+				} else {
+					m.editorIndex = (m.editorIndex + 1) % len(editorOptions)
+					m.editor = editorOptions[m.editorIndex]
+				}
+			}
+			return m, nil
+		}
 		if m.fullPreview {
 			if msg.String() == "ctrl+f" {
 				m.fullPreview = false
@@ -462,6 +501,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, tea.Batch(resizeCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 			}
 			return m, resizeCmd
+
+		case key.Matches(msg, m.keys.ThemesEditorSettings):
+			m.settingsOpen = true
+			m.settingsTab = 0
+			m.settingsSave = false
+			// save originals for cancel
+			m.tempTheme = themeOptions[m.themeIndex]
+			m.tempEditor = m.editor
+			// set current index
+			for i, t := range themeOptions {
+				if t == themeOptions[m.themeIndex] {
+					m.themeIndex = i
+					break
+				}
+			}
+			for i, e := range editorOptions {
+				if e == m.editor {
+					m.editorIndex = i
+					break
+				}
+			}
+			return m, nil
+
 		case key.Matches(msg, m.keys.FullPreview):
 			if m.selectedFile != "" && isImageFile(m.resolveFilePath(m.selectedFile)) {
 				return m, nil
@@ -484,6 +546,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 			return m, nil
+
 		case msg.String() == "enter":
 
 			if m.list.FilterState() == list.Filtering {

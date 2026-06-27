@@ -20,7 +20,16 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-var vaultDir string
+var (
+	vaultDir string
+
+	themeOptions = []string{
+		"default", "gruvbox", "nord", "tokyonight", "forest",
+		"solarized", "catppuccin", "dracula", "dusk", "tide",
+		"moss", "glacier", "plum",
+	}
+	editorOptions = []string{}
+)
 
 type model struct {
 	list              list.Model
@@ -50,11 +59,33 @@ type model struct {
 	spinner           spinner.Model
 	loadingFile       bool
 	theme             Theme
+	settingsOpen      bool
+	settingsTab       int // 0 = theme, 1 = editor
+	themeIndex        int
+	editorIndex       int
+	settingsSave      bool
+	tempTheme         string
+	tempEditor        string
 }
 
 func (m model) Init() tea.Cmd { return nil }
 
 func initialModel(editor string, themeName string) model {
+	themeIdx := 0
+	for i, t := range themeOptions {
+		if t == themeName {
+			themeIdx = i
+			break
+		}
+	}
+	editorIdx := 0
+	for i, e := range editorOptions {
+		if e == editor {
+			editorIdx = i
+			break
+		}
+	}
+
 	listKeys := newListKeyMap()
 
 	if err := os.MkdirAll(vaultDir, 0o755); err != nil {
@@ -77,6 +108,7 @@ func initialModel(editor string, themeName string) model {
 			listKeys.FullPreview,
 			listKeys.ToggleHelpMenu,
 			listKeys.CycleSort,
+			listKeys.ThemesEditorSettings,
 		}
 	}
 
@@ -97,6 +129,7 @@ func initialModel(editor string, themeName string) model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(t.Primary)
+	editorOptions = availableEditors()
 
 	return model{
 		list:        l,
@@ -109,6 +142,8 @@ func initialModel(editor string, themeName string) model {
 		sortMode:    sortModifiedDesc,
 		editor:      editor,
 		theme:       t,
+		themeIndex:  themeIdx,
+		editorIndex: editorIdx,
 	}
 }
 
@@ -133,7 +168,6 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 			renderImage(path, cols, rows, xOffset, yOffset),
 		)
 	}
-	m.showingImage = false
 	return tea.Sequence(
 		clearKittyGraphics(),
 		readFile(path),
@@ -147,7 +181,7 @@ func (m model) resolveFilePath(title string) string {
 func (m model) previewHeader() string {
 	title := m.previewHeaderStyle().Render(m.selectedFile)
 	line := lipgloss.NewStyle().Foreground(m.theme.Border).Render(
-		fmt.Sprintf("%s", repeatRune('─', max(0, m.viewport.Width-lipgloss.Width(title)))),
+		repeatRune('─', max(0, m.viewport.Width-lipgloss.Width(title))),
 	)
 	return lipgloss.JoinHorizontal(lipgloss.Center, title, line)
 }
@@ -155,7 +189,7 @@ func (m model) previewHeader() string {
 func (m model) previewFooter() string {
 	info := m.previewFooterStyle().Render(fmt.Sprintf("%3.f%%", m.viewport.ScrollPercent()*100))
 	line := lipgloss.NewStyle().Foreground(m.theme.Border).Render(
-		fmt.Sprintf("%s", repeatRune('─', max(0, m.viewport.Width-lipgloss.Width(info)))),
+		repeatRune('─', max(0, m.viewport.Width-lipgloss.Width(info))),
 	)
 	return lipgloss.JoinHorizontal(lipgloss.Center, line, info)
 }

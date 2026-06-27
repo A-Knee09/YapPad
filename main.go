@@ -64,9 +64,11 @@ Keybindings:
   r          rename file
   d          delete file
   enter      open in editor
-  ctrl+f     full preview of file
-  ctrl+p     toggle preview
-  ctrl+s     cycle sort
+  f          full preview of file
+  p          toggle veiwport preview
+  s     	 cycle sort
+  h 		 toggle help bar below
+  , 		 Settings for theme and editor
   /          filter
   ?          toggle help
   q          quit

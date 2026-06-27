@@ -10,6 +10,18 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+var knownEditors = []string{"inbuilt", "nvim", "vim", "vi", "nano", "helix", "micro", "emacs", "gedit", "kate", "code"}
+
+func availableEditors() []string {
+	available := []string{"inbuilt"}
+	for _, e := range knownEditors[1:] { // skip inbuilt
+		if _, err := exec.LookPath(e); err == nil {
+			available = append(available, e)
+		}
+	}
+	return available
+}
+
 func openInbuiltEditor(path string, m model) (model, tea.Cmd) {
 	content, err := os.ReadFile(path)
 	if err != nil {

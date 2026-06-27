@@ -81,6 +81,111 @@ func (m model) listItemStyles() list.DefaultItemStyles {
 	return s
 }
 
+func (m model) settingsOverlay() string {
+	// Theme list
+	var themeSb strings.Builder
+	for i, t := range themeOptions {
+		if i == m.themeIndex && m.settingsTab == 0 {
+			themeSb.WriteString(lipgloss.NewStyle().Foreground(m.theme.Primary).Bold(true).Render("● " + t))
+			themeSb.WriteString("\n")
+		} else if i == m.themeIndex {
+			themeSb.WriteString(lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).PaddingLeft(2).Render(t))
+			themeSb.WriteString("\n")
+		} else {
+			themeSb.WriteString(lipgloss.NewStyle().Foreground(m.theme.SubText).PaddingLeft(2).Render(t))
+			themeSb.WriteString("\n")
+		}
+	}
+
+	// Palette swatches
+	var paletteSb strings.Builder
+	swatches := []struct {
+		name  string
+		color lipgloss.Color
+	}{
+		{"Primary  ", m.theme.Primary},
+		{"Secondary", m.theme.Secondary},
+		{"Accent   ", m.theme.Accent},
+		{"Border   ", m.theme.Border},
+		{"Muted    ", m.theme.Muted},
+		{"Text     ", m.theme.Text},
+		{"SubText  ", m.theme.SubText},
+	}
+	for _, s := range swatches {
+		swatch := lipgloss.NewStyle().Background(s.color).Foreground(s.color).Render("   ")
+		label := lipgloss.NewStyle().Foreground(m.theme.SubText).Render(" " + s.name)
+		paletteSb.WriteString(lipgloss.JoinHorizontal(lipgloss.Center, swatch, label))
+		paletteSb.WriteString("\n")
+	}
+
+	themeTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Theme")
+	paletteTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Palette")
+	if m.settingsTab == 0 {
+		themeTitle = lipgloss.NewStyle().Bold(true).Foreground(m.theme.Primary).Render("Theme")
+	}
+
+	themeCol := lipgloss.JoinVertical(lipgloss.Left, themeTitle, "", themeSb.String())
+	paletteCol := lipgloss.JoinVertical(lipgloss.Left, paletteTitle, "", paletteSb.String())
+	themeAndPalette := lipgloss.JoinHorizontal(lipgloss.Top, themeCol, "    ", paletteCol)
+
+	themeBorderColor := m.theme.Border
+	if m.settingsTab == 0 {
+		themeBorderColor = m.theme.Primary
+	}
+	themeBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(themeBorderColor).
+		Padding(1, 2).
+		Render(themeAndPalette)
+
+	// Editor box
+	var editorSb strings.Builder
+	for i, e := range editorOptions {
+		if i == m.editorIndex && m.settingsTab == 1 {
+			editorSb.WriteString(lipgloss.NewStyle().Foreground(m.theme.Primary).Bold(true).Render("● " + e))
+			editorSb.WriteString("\n")
+		} else if i == m.editorIndex {
+			editorSb.WriteString(lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).PaddingLeft(2).Render(e))
+			editorSb.WriteString("\n")
+		} else {
+			editorSb.WriteString(lipgloss.NewStyle().Foreground(m.theme.SubText).PaddingLeft(2).Render(e))
+			editorSb.WriteString("\n")
+		}
+	}
+
+	editorTitle := lipgloss.NewStyle().Bold(true).Foreground(m.theme.Muted).Render("Editor")
+	if m.settingsTab == 1 {
+		editorTitle = lipgloss.NewStyle().Bold(true).Foreground(m.theme.Primary).Render("Editor")
+	}
+
+	editorBorderColor := m.theme.Border
+	if m.settingsTab == 1 {
+		editorBorderColor = m.theme.Primary
+	}
+	editorBox := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(editorBorderColor).
+		Padding(1, 2).
+		Render(editorTitle + "\n\n" + editorSb.String())
+
+	// Save + footer
+	saveStr := "[ ] Save to config"
+	if m.settingsSave {
+		saveStr = "[●] Save to config"
+	}
+	save := lipgloss.NewStyle().Foreground(m.theme.Secondary).Render(saveStr)
+	footer := lipgloss.NewStyle().Foreground(m.theme.Muted).Render("tab: switch  s: save  enter: confirm  esc: cancel")
+
+	boxes := lipgloss.JoinHorizontal(lipgloss.Top, themeBox, "  ", editorBox)
+	content := lipgloss.JoinVertical(lipgloss.Left, boxes, "\n"+save, footer)
+
+	return lipgloss.Place(
+		m.width, m.height,
+		lipgloss.Center, lipgloss.Center,
+		content,
+	)
+}
+
 func (m model) View() string {
 	delegate := list.NewDefaultDelegate()
 	delegate.Styles = m.listItemStyles()
@@ -137,6 +242,10 @@ func (m model) View() string {
 			lipgloss.JoinHorizontal(lipgloss.Center, title, editorStatus),
 			m.editorContent.View(),
 		)
+	}
+
+	if m.settingsOpen {
+		return m.settingsOverlay()
 	}
 	if m.inputMode {
 		if m.inputStep == 0 {
