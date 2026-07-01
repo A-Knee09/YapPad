@@ -8,7 +8,8 @@ A terminal-based note-taking app built with Go and Bubble Tea.
 
 https://github.com/user-attachments/assets/cbe425a2-4a54-4b5e-a331-47501feb353d
 
-<img width="1915" height="1077" alt="swappy-20260701_215116" src="https://github.com/user-attachments/assets/341691b3-e486-4eaf-91d5-9ab3cffcf719" />
+<img width="1920" height="1080" alt="swappy-20260701_215440" src="https://github.com/user-attachments/assets/48a30f40-ca7b-422a-ae85-3da3626031bb" />
+
 
 
 <img width="1920" height="1080" alt="260326_00h48m57s_screenshot" src="https://github.com/user-attachments/assets/82eb537b-716f-49ae-bf9b-c334eb67b2b0" />
