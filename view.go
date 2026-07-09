@@ -151,8 +151,8 @@ func (m model) settingsOverlay() string {
 	editorCol := lipgloss.JoinVertical(lipgloss.Left, editorTitle, "", editorSb.String())
 
 	inner := lipgloss.JoinHorizontal(lipgloss.Top,
-		themeCol, divider,
 		paletteCol, divider,
+		themeCol, divider,
 		editorCol,
 	)
 

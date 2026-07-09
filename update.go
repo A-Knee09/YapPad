@@ -162,6 +162,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.theme = getTheme(m.tempTheme)
 				m.editor = m.tempEditor
 				m.settingsOpen = false
+				if m.selectedFile != "" && m.showPreview {
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				}
 			case "enter":
 				// confirm
 				if m.settingsSave {
@@ -171,6 +175,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					writeConfig(cfg)
 				}
 				m.settingsOpen = false
+				if m.selectedFile != "" && m.showPreview {
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+				}
 			case "tab":
 				m.settingsTab = (m.settingsTab + 1) % 2
 			case "s":
@@ -494,6 +502,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// save originals for cancel
 			m.tempTheme = themeOptions[m.themeIndex]
 			m.tempEditor = m.editor
+			if m.showingImage {
+				m.showingImage = false
+				return m, tea.Batch(clearKittyGraphics(), func() tea.Msg { return nil })
+			}
 			// set current index
 			for i, t := range themeOptions {
 				if t == themeOptions[m.themeIndex] {
