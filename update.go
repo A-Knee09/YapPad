@@ -18,6 +18,13 @@ import (
 	"github.com/muesli/reflow/wordwrap"
 )
 
+func (m model) refreshList() []list.Item {
+	if m.inFolderFolderMode {
+		return listFolders(m.currentFolder)
+	}
+	return listFilesOnly(m.currentFolder, m.sortMode)
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
@@ -81,14 +88,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Width = viewportWidth
 		m.viewport.Height = msg.Height - 10
 
-		if m.showPreview && m.selectedFile == "" {
+		if !m.inFolderFolderMode && m.showPreview && m.selectedFile == "" {
 			if m.list.SelectedItem() != nil {
 				i := m.list.SelectedItem().(item)
-				m.selectedFile = i.title
+				relPath, _ := filepath.Rel(vaultDir, i.path)
+				m.selectedFile = relPath
 				m.loadingFile = true
-				return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
+				return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(i.path))
 			}
-		} else if m.showPreview && m.selectedFile != "" {
+		} else if !m.inFolderFolderMode && m.showPreview && m.selectedFile != "" {
 			m.loadingFile = true
 			return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 		}
@@ -108,7 +116,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.GotoTop()
 
 	case editorSavedMsg:
-		m.list.SetItems(listFiles(m.sortMode))
+		m.list.SetItems(m.refreshList())
 		return m, m.list.NewStatusMessage("Saved!")
 
 	case clearViewportMsg:
@@ -141,9 +149,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case fileEditedMsg:
-		m.list.SetItems(listFiles(m.sortMode))
+		m.list.SetItems(m.refreshList())
 		for i, it := range m.list.Items() {
-			if it.(item).title == m.selectedFile {
+			relPath, _ := filepath.Rel(vaultDir, it.(item).path)
+			if relPath == m.selectedFile {
 				m.list.Select(i)
 				break
 			}
@@ -232,7 +241,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				listWidth := m.width / 2
 				m.viewport.Width = m.width - listWidth - 6
 				m.viewport.Height = m.height - 10
-				m.list.SetItems(listFiles(m.sortMode))
+				m.list.SetItems(m.refreshList())
 				if m.showPreview && m.selectedFile != "" {
 					m.loadingFile = true
 					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
@@ -278,10 +287,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "y", "Y":
 				if it, ok := m.list.SelectedItem().(item); ok {
-					path := m.resolveFilePath(it.title)
+					path := it.path
 					os.Remove(path)
 					deleteMetaDesc(path)
-					m.list.SetItems(listFiles(m.sortMode))
+					m.list.SetItems(m.refreshList())
 					m.deleting = false
 					m.selectedFile = ""
 					m.showingImage = false
@@ -302,6 +311,44 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 
 			case "enter":
+				if m.folderCreationMode {
+					name := m.input.Value()
+					if name != "" {
+						newPath := filepath.Join(m.currentFolder, name)
+						os.MkdirAll(newPath, 0o755)
+					}
+					m.folderCreationMode = false
+					m.inputMode = false
+					m.input.SetValue("")
+					m.input.Focus()
+					m.list.SetItems(m.refreshList())
+					return m, nil
+				}
+
+				if m.moveMode {
+					destDirRel := m.input.Value()
+					destDir := filepath.Clean(filepath.Join(vaultDir, destDirRel))
+					os.MkdirAll(destDir, 0o755)
+					oldPath := m.moveTarget
+					newPath := filepath.Join(destDir, filepath.Base(oldPath))
+					if _, err := os.Stat(oldPath); err == nil {
+						desc := readMetaDesc(oldPath)
+						deleteMetaDesc(oldPath)
+						os.Rename(oldPath, newPath)
+						if desc != "" {
+							writeMetaDesc(newPath, desc)
+						}
+					}
+					m.moveMode = false
+					m.inputMode = false
+					m.input.SetValue("")
+					m.input.Focus()
+					m.list.SetItems(m.refreshList())
+					m.selectedFile = ""
+					m.viewport.SetContent("")
+					return m, m.list.NewStatusMessage("Moved file to " + destDirRel)
+				}
+
 				if m.renameMode {
 					if m.inputStep == 0 {
 						name := m.input.Value()
@@ -323,7 +370,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if filepath.Ext(name) == "" {
 						name += originalExt
 					}
-					newPath := filepath.Join(vaultDir, name)
+					newPath := filepath.Join(filepath.Dir(oldPath), name)
 
 					oldDesc := readMetaDesc(oldPath)
 					finalDesc := desc
@@ -345,7 +392,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.input.SetValue("")
 					m.descInput.SetValue("")
 					m.input.Focus()
-					m.list.SetItems(listFiles(m.sortMode))
+					m.list.SetItems(m.refreshList())
 					return m, nil
 				}
 
@@ -365,12 +412,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 				var path string
 				if name == "" {
-					path = filepath.Join(vaultDir, "note.md")
+					path = filepath.Join(m.currentFolder, "note.md")
 				} else {
 					if filepath.Ext(name) == "" {
 						name += ".md"
 					}
-					path = filepath.Join(vaultDir, name)
+					path = filepath.Join(m.currentFolder, name)
 				}
 
 				os.MkdirAll(filepath.Dir(path), 0o755)
@@ -383,12 +430,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				rel, _ := filepath.Rel(vaultDir, path)
 				m.selectedFile = rel
 
+				m.inFolderFolderMode = false
 				m.inputMode = false
 				m.inputStep = 0
 				m.input.SetValue("")
 				m.descInput.SetValue("")
 				m.input.Focus()
-				m.list.SetItems(listFiles(m.sortMode))
+				m.list.SetItems(m.refreshList())
+				m.list.Title = "Files in " + filepath.Base(m.currentFolder)
 
 				if m.editor == "inbuilt" {
 					var editorCmd tea.Cmd
@@ -400,11 +449,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "esc":
 				m.inputMode = false
 				m.renameMode = false
+				m.folderCreationMode = false
+				m.moveMode = false
 				m.inputStep = 0
 				m.input.SetValue("")
 				m.descInput.SetValue("")
 				m.input.Focus()
-				m.list.SetItems(listFiles(m.sortMode))
+				m.list.SetItems(m.refreshList())
 				return m, nil
 			}
 
@@ -412,7 +463,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.input, cmd = m.input.Update(msg)
 				val := m.input.Value()
 				if val != "" {
-					allItems := listFiles(m.sortMode)
+					allItems := m.refreshList()
 					var filtered []list.Item
 					lowerVal := strings.ToLower(val)
 					for _, it := range allItems {
@@ -422,7 +473,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					m.list.SetItems(filtered)
 				} else {
-					m.list.SetItems(listFiles(m.sortMode))
+					m.list.SetItems(m.refreshList())
 				}
 			} else {
 				m.descInput, cmd = m.descInput.Update(msg)
@@ -439,34 +490,59 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.input.Focus()
 			return m, nil
 
+		case key.Matches(msg, m.keys.NewFolder):
+			m.inputMode = true
+			m.folderCreationMode = true
+			m.input.Placeholder = "New folder name"
+			m.input.SetValue("")
+			m.input.Focus()
+			return m, nil
+
 		case key.Matches(msg, m.keys.Delete):
 			if m.list.SelectedItem() != nil {
-				m.deleting = true
+				if it, ok := m.list.SelectedItem().(item); ok && !it.isDir {
+					m.deleting = true
+				}
 			}
 			return m, nil
 
 		case key.Matches(msg, m.keys.Rename):
-			if it, ok := m.list.SelectedItem().(item); ok {
+			if it, ok := m.list.SelectedItem().(item); ok && !it.isDir {
 				m.renameMode = true
-				m.renameTarget = it.title
+				relPath, _ := filepath.Rel(vaultDir, it.path)
+				m.renameTarget = relPath
 				m.inputMode = true
 				m.inputStep = 0
 				m.input.SetValue(it.title)
 				m.input.Focus()
-				existingDesc := readMetaDesc(m.resolveFilePath(it.title))
+				existingDesc := readMetaDesc(it.path)
 				m.descInput.SetValue(existingDesc)
+			}
+			return m, nil
+
+		case key.Matches(msg, m.keys.Move):
+			if !m.inFolderFolderMode && m.list.SelectedItem() != nil {
+				if it, ok := m.list.SelectedItem().(item); ok && !it.isDir {
+					m.inputMode = true
+					m.moveMode = true
+					m.moveTarget = it.path
+					m.input.Placeholder = "Move to: path/relative/to/vault/"
+					m.input.SetValue("")
+					m.input.Focus()
+				}
 			}
 			return m, nil
 
 		case key.Matches(msg, m.keys.CycleSort):
 			m.sortMode = (m.sortMode + 1) % 6
-			m.list.SetItems(listFiles(m.sortMode))
+			m.list.SetItems(m.refreshList())
 			m.selectedFile = ""
-			if m.list.SelectedItem() != nil && m.showPreview {
+			if m.list.SelectedItem() != nil && m.showPreview && !m.inFolderFolderMode {
 				i := m.list.SelectedItem().(item)
-				m.selectedFile = i.title
+				relPath, _ := filepath.Rel(vaultDir, i.path)
+				m.selectedFile = relPath
 				m.loadingFile = true
-				return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
+				return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
 			}
 			return m, nil
 
@@ -544,22 +620,64 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			return m, nil
 
-		case msg.String() == "enter":
+		case msg.String() == "esc":
+			if !m.inFolderFolderMode {
+				m.inFolderFolderMode = true
+				m.list.SetItems(m.refreshList())
+				m.list.Title = "Folders in " + filepath.Base(m.currentFolder)
+				m.list.ResetSelected()
+				m.selectedFile = ""
+				m.viewport.SetContent("")
+				return m, nil
+			} else if m.currentFolder != vaultDir {
+				m.currentFolder = filepath.Dir(m.currentFolder)
+				m.list.SetItems(m.refreshList())
+				m.list.Title = "Folders in " + filepath.Base(m.currentFolder)
+				m.list.ResetSelected()
+				return m, nil
+			}
 
+		case msg.String() == "enter":
 			if m.list.FilterState() == list.Filtering {
 				break
 			}
 			if it, ok := m.list.SelectedItem().(item); ok {
-				path := m.resolveFilePath(it.title)
-				if isImageFile(path) {
-					return m, openImageViewer(path)
+				if m.inFolderFolderMode {
+					if it.isRoot {
+						m.inFolderFolderMode = false
+						m.list.SetItems(m.refreshList())
+						m.list.Title = "Files in " + filepath.Base(m.currentFolder)
+						m.list.ResetSelected()
+						m.selectedFile = ""
+						if m.list.SelectedItem() != nil {
+							i := m.list.SelectedItem().(item)
+							relPath, _ := filepath.Rel(vaultDir, i.path)
+							m.selectedFile = relPath
+							if m.showPreview {
+								m.loadingFile = true
+								return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
+							}
+						}
+						return m, nil
+					} else if it.isDir {
+						m.currentFolder = it.path
+						m.list.SetItems(m.refreshList())
+						m.list.Title = "Folders in " + filepath.Base(m.currentFolder)
+						m.list.ResetSelected()
+						return m, nil
+					}
+				} else {
+					path := it.path
+					if isImageFile(path) {
+						return m, openImageViewer(path)
+					}
+					if m.editor == "inbuilt" {
+						var editorCmd tea.Cmd
+						m, editorCmd = openInbuiltEditor(path, m)
+						return m, editorCmd
+					}
+					return m, openInEditor(path, m.editor)
 				}
-				if m.editor == "inbuilt" {
-					var editorCmd tea.Cmd
-					m, editorCmd = openInbuiltEditor(path, m)
-					return m, editorCmd
-				}
-				return m, openInEditor(path, m.editor)
 			}
 		}
 	}
@@ -568,14 +686,33 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.list, cmdList = m.list.Update(msg)
 
 	var cmdRead tea.Cmd
-	if m.list.SelectedItem() != nil {
-		i := m.list.SelectedItem().(item)
-		if i.title != m.selectedFile {
-			m.selectedFile = i.title
-			if m.showPreview {
-				m.loadingFile = true
-				cmdRead = tea.Batch(m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(i.title)))
+	if !m.inFolderFolderMode {
+		if m.list.SelectedItem() != nil {
+			i := m.list.SelectedItem().(item)
+			relPath, _ := filepath.Rel(vaultDir, i.path)
+			if relPath != m.selectedFile {
+				m.selectedFile = relPath
+				if m.showPreview {
+					m.loadingFile = true
+					cmdRead = tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
+				}
 			}
+		}
+	} else {
+		if m.list.SelectedItem() != nil {
+			i := m.list.SelectedItem().(item)
+			var targetPath string
+			if i.isRoot {
+				targetPath = m.currentFolder
+			} else {
+				targetPath = i.path
+			}
+			treeStr := buildTree(targetPath, "")
+			if treeStr == "" {
+				treeStr = "(Empty Folder)\n"
+			}
+			m.viewport.SetContent(treeStr)
+			m.viewport.GotoTop()
 		}
 	}
 	var cmdViewport tea.Cmd

@@ -241,17 +241,26 @@ func (m model) View() string {
 		return m.settingsOverlay()
 	}
 	if m.inputMode {
-		if m.inputStep == 0 {
+		prompt := "File Name"
+		if m.folderCreationMode {
+			prompt = "Folder Name"
+		} else if m.moveMode {
+			prompt = "Move Destination"
+		}
+
+		if m.inputStep == 0 || m.folderCreationMode || m.moveMode {
 			return fmt.Sprintf(
-				"\n%s\n\n  File Name %s\n\n%s",
+				"\n%s\n\n  %s %s\n\n%s",
 				header,
+				prompt,
 				m.input.View(),
 				m.list.View(),
 			)
 		}
 		return fmt.Sprintf(
-			"\n%s\n\n File Name %s\n Description %s\n\n%s",
+			"\n%s\n\n %s %s\n Description %s\n\n%s",
 			header,
+			prompt,
 			m.input.View(),
 			m.descInput.View(),
 			m.list.View(),

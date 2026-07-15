@@ -73,6 +73,13 @@ type model struct {
 	width  int
 	height int
 
+	// Folder navigation state
+	currentFolder      string
+	inFolderFolderMode bool
+	folderCreationMode bool
+	moveMode           bool
+	moveTarget         string
+
 	// Config
 	theme    Theme
 	editor   string
@@ -105,17 +112,19 @@ func initialModel(editor string, themeName string) model {
 		log.Fatal(err)
 	}
 
-	items := listFiles(sortModifiedDesc)
+	items := listFolders(vaultDir)
 
 	delegate := list.NewDefaultDelegate()
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "All Yaps Here"
+	l.Title = "Folders in " + filepath.Base(vaultDir)
 	l.SetShowTitle(true)
 
 	l.AdditionalFullHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			listKeys.New,
+			listKeys.NewFolder,
 			listKeys.Rename,
+			listKeys.Move,
 			listKeys.Delete,
 			listKeys.TogglePreview,
 			listKeys.FullPreview,
@@ -145,18 +154,20 @@ func initialModel(editor string, themeName string) model {
 	editorOptions = availableEditors()
 
 	return model{
-		list:        l,
-		input:       ti,
-		descInput:   di,
-		spinner:     s,
-		keys:        listKeys,
-		viewport:    viewport.New(0, 0),
-		showPreview: true,
-		sortMode:    sortModifiedDesc,
-		editor:      editor,
-		theme:       t,
-		themeIndex:  themeIdx,
-		editorIndex: editorIdx,
+		list:               l,
+		input:              ti,
+		descInput:          di,
+		spinner:            s,
+		keys:               listKeys,
+		viewport:           viewport.New(0, 0),
+		showPreview:        true,
+		sortMode:           sortModifiedDesc,
+		editor:             editor,
+		theme:              t,
+		themeIndex:         themeIdx,
+		editorIndex:        editorIdx,
+		currentFolder:      vaultDir,
+		inFolderFolderMode: true,
 	}
 }
 

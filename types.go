@@ -29,10 +29,14 @@ type clearViewportMsg struct{}
 // List item
 
 type item struct {
-	title   string
-	desc    string
-	modTime time.Time
-	creTime time.Time
+	title     string
+	desc      string
+	modTime   time.Time
+	creTime   time.Time
+	isDir     bool
+	isRoot    bool
+	path      string
+	fileCount int
 }
 
 func (i item) Title() string       { return i.title }

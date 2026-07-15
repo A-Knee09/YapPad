@@ -215,3 +215,174 @@ func listFiles(sMode sortMode) []list.Item {
 
 	return items
 }
+
+func countFilesRecursively(dirPath string) int {
+	count := 0
+	filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		// Skip hidden
+		if d.Name()[0] == '.' && path != dirPath {
+			if d.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !d.IsDir() {
+			count++
+		}
+		return nil
+	})
+	return count
+}
+
+func listFolders(dir string) []list.Item {
+	var items []list.Item
+
+	// 1. Files in this folder
+	items = append(items, item{
+		title:  "Files in this folder",
+		desc:   "View files directly in " + filepath.Base(dir),
+		isDir:  true,
+		isRoot: true,
+		path:   dir,
+	})
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return items
+	}
+
+	for _, entry := range entries {
+		if entry.Name()[0] == '.' {
+			continue
+		}
+		if entry.IsDir() {
+			path := filepath.Join(dir, entry.Name())
+			fileCount := countFilesRecursively(path)
+			items = append(items, item{
+				title:     entry.Name(),
+				desc:      fmt.Sprintf("Folder (%d files)", fileCount),
+				isDir:     true,
+				path:      path,
+				fileCount: fileCount,
+			})
+		}
+	}
+
+	// Sort subdirectories alphabetically (excluding the "Files in this folder" option at index 0)
+	if len(items) > 1 {
+		sort.Slice(items[1:], func(i, j int) bool {
+			return strings.ToLower(items[1+i].(item).title) < strings.ToLower(items[1+j].(item).title)
+		})
+	}
+
+	return items
+}
+
+func listFilesOnly(dir string, sMode sortMode) []list.Item {
+	var items []list.Item
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return items
+	}
+
+	for _, entry := range entries {
+		if entry.Name()[0] == '.' || entry.IsDir() {
+			continue
+		}
+
+		path := filepath.Join(dir, entry.Name())
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+
+		modTime := info.ModTime()
+		var creTime time.Time
+		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+			creTime = getCreationTime(stat)
+		} else {
+			creTime = modTime
+		}
+
+		modStr := modTime.Format(time.RFC822)
+		customDesc := readMetaDesc(path)
+		var desc string
+		if customDesc != "" {
+			desc = customDesc
+		} else {
+			desc = "Modified: " + modStr
+		}
+
+		items = append(items, item{
+			title:   entry.Name(),
+			desc:    desc,
+			modTime: modTime,
+			creTime: creTime,
+			path:    path,
+		})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		itemI := items[i].(item)
+		itemJ := items[j].(item)
+
+		switch sMode {
+		case sortModifiedDesc:
+			return itemI.modTime.After(itemJ.modTime)
+		case sortModifiedAsc:
+			return itemI.modTime.Before(itemJ.modTime)
+		case sortCreatedDesc:
+			return itemI.creTime.After(itemJ.creTime)
+		case sortCreatedAsc:
+			return itemI.creTime.Before(itemJ.creTime)
+		case sortNameDesc:
+			return strings.ToLower(itemI.title) > strings.ToLower(itemJ.title)
+		case sortNameAsc:
+			return strings.ToLower(itemI.title) < strings.ToLower(itemJ.title)
+		default:
+			return itemI.modTime.After(itemJ.modTime)
+		}
+	})
+
+	return items
+}
+
+func buildTree(dirPath string, currentPrefix string) string {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return ""
+	}
+
+	var validEntries []os.DirEntry
+	for _, entry := range entries {
+		if entry.Name()[0] == '.' {
+			continue
+		}
+		validEntries = append(validEntries, entry)
+	}
+
+	var sb strings.Builder
+	for i, entry := range validEntries {
+		isLast := i == len(validEntries)-1
+		var branch string
+		if isLast {
+			branch = "└── "
+		} else {
+			branch = "├── "
+		}
+		sb.WriteString(currentPrefix + branch + entry.Name() + "\n")
+		if entry.IsDir() {
+			var nextPrefix string
+			if isLast {
+				nextPrefix = currentPrefix + "    "
+			} else {
+				nextPrefix = currentPrefix + "│   "
+			}
+			sb.WriteString(buildTree(filepath.Join(dirPath, entry.Name()), nextPrefix))
+		}
+	}
+	return sb.String()
+}
