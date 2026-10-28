@@ -179,19 +179,14 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 		xOffset := listWidth + 6
 
 		cols := m.viewport.Width - 1
-		rows := m.viewport.Height
+		rows := m.height - 5
 
-		yOffset := 4 + 4
-		ratio, err := getImageAspectRatio(path)
-		if err == nil && ratio > 0.8 {
-			xOffset = listWidth + 15
-			yOffset = 4 + 3
-		}
+		yOffset := 4
 
 		return renderImage(path, cols, rows, xOffset, yOffset, requestID, ctx)
 	}
 	return func() tea.Msg {
-		if !writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a\x1b\\")) {
+		if !writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a,q=2\x1b\\")) {
 			return nil
 		}
 		msg := readFile(path)()
