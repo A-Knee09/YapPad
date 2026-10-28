@@ -57,11 +57,14 @@ type model struct {
 	fullPreview  bool
 
 	// Preview
-	selectedFile      string
-	showPreview       bool
-	manualHidePreview bool
-	showingImage      bool
-	loadingFile       bool
+	selectedFile         string
+	previewSelectionPath string
+	previewSelectionID   uint64
+	previewPending       bool
+	showPreview          bool
+	manualHidePreview    bool
+	showingImage         bool
+	loadingFile          bool
 
 	// Settings
 	themeIndex  int
@@ -170,6 +173,7 @@ func initialModel(editor string, themeName string) model {
 }
 
 func (m model) loadFileOrImage(path string) tea.Cmd {
+	requestID, ctx := newImageRequest()
 	if isImageFile(path) {
 		listWidth := m.width / 2
 		xOffset := listWidth + 6
@@ -184,16 +188,19 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 			yOffset = 4 + 3
 		}
 
-		return tea.Sequence(
-			clearKittyGraphics(),
-			func() tea.Msg { return clearViewportMsg{} },
-			renderImage(path, cols, rows, xOffset, yOffset),
-		)
+		return renderImage(path, cols, rows, xOffset, yOffset, requestID, ctx)
 	}
-	return tea.Sequence(
-		clearKittyGraphics(),
-		readFile(path),
-	)
+	return func() tea.Msg {
+		if !writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a\x1b\\")) {
+			return nil
+		}
+		msg := readFile(path)()
+		if loaded, ok := msg.(fileLoadedMsg); ok {
+			loaded.requestID = requestID
+			return loaded
+		}
+		return msg
+	}
 }
 
 func (m model) resolveFilePath(title string) string {

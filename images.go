@@ -4,6 +4,7 @@ package main
 import (
 	"bytes"
 	"cmp"
+	"context"
 	"fmt"
 	"image"
 	_ "image/gif"
@@ -15,6 +16,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -43,8 +45,9 @@ func isImageFile(path string) bool {
 
 // clearKittyGraphics sends the escape sequence to delete all Kitty images.
 func clearKittyGraphics() tea.Cmd {
+	requestID := invalidateImageRequest()
 	return func() tea.Msg {
-		fmt.Print("\x1b_Ga=d,d=a\x1b\\")
+		writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a\x1b\\"))
 		return nil
 	}
 }
@@ -77,11 +80,56 @@ captured first to prevent chafa's own cursor movements from wrecking
 the Bubble Tea TUI.
 */
 var (
-	imageCache   = map[string][]byte{}
-	imageCacheMu sync.Mutex
+	imageCache      = map[string][]byte{}
+	imageCacheMu    sync.Mutex
+	imageOutputMu   sync.Mutex
+	imageRequestMu  sync.Mutex
+	imageRequestID  uint64
+	imageCancelFunc context.CancelFunc
 )
 
-func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
+func newImageRequest() (uint64, context.Context) {
+	imageRequestMu.Lock()
+	defer imageRequestMu.Unlock()
+	if imageCancelFunc != nil {
+		imageCancelFunc()
+	}
+	imageRequestID++
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	imageCancelFunc = cancel
+	return imageRequestID, ctx
+}
+
+func invalidateImageRequest() uint64 {
+	imageRequestMu.Lock()
+	defer imageRequestMu.Unlock()
+	if imageCancelFunc != nil {
+		imageCancelFunc()
+		imageCancelFunc = nil
+	}
+	imageRequestID++
+	return imageRequestID
+}
+
+func isCurrentImageRequest(requestID uint64) bool {
+	imageRequestMu.Lock()
+	defer imageRequestMu.Unlock()
+	return requestID == imageRequestID
+}
+
+func writeImageIfCurrent(requestID uint64, content []byte) bool {
+	imageRequestMu.Lock()
+	defer imageRequestMu.Unlock()
+	if requestID != imageRequestID {
+		return false
+	}
+	imageOutputMu.Lock()
+	defer imageOutputMu.Unlock()
+	_, _ = os.Stdout.Write(content)
+	return true
+}
+
+func renderImage(path string, cols, rows, xOffset, yOffset int, requestID uint64, ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		key := fmt.Sprintf("%s-%dx%d", path, cols, rows)
 
@@ -91,18 +139,27 @@ func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
 
 		if ok {
 			var buf bytes.Buffer
+			buf.WriteString("\x1b_Ga=d,d=a\x1b\\")
 			buf.WriteString("\x1b[s")
 			buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset))
 			buf.Write(cached)
 			buf.WriteString("\x1b[u")
-			os.Stdout.Write(buf.Bytes())
-			return imageRenderedMsg{}
+			if !writeImageIfCurrent(requestID, buf.Bytes()) {
+				return nil
+			}
+			return imageRenderedMsg{requestID: requestID}
 		}
 
-		cmd := exec.Command("chafa", "-f", "kitty", "-s", fmt.Sprintf("%dx%d", cols, rows), path)
+		cmd := exec.CommandContext(ctx, "chafa", "-f", "kitty", "-s", fmt.Sprintf("%dx%d", cols, rows), path)
 		output, err := cmd.Output()
 		if err != nil {
-			return imageRenderedMsg{}
+			imageRequestMu.Lock()
+			current := requestID == imageRequestID
+			imageRequestMu.Unlock()
+			if !current {
+				return nil
+			}
+			return imageRenderedMsg{requestID: requestID, err: err}
 		}
 
 		imageCacheMu.Lock()
@@ -110,12 +167,15 @@ func renderImage(path string, cols, rows, xOffset, yOffset int) tea.Cmd {
 		imageCacheMu.Unlock()
 
 		var buf bytes.Buffer
+		buf.WriteString("\x1b_Ga=d,d=a\x1b\\")
 		buf.WriteString("\x1b[s")
 		buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset))
 		buf.Write(output)
 		buf.WriteString("\x1b[u")
-		os.Stdout.Write(buf.Bytes())
-		return imageRenderedMsg{}
+		if !writeImageIfCurrent(requestID, buf.Bytes()) {
+			return nil
+		}
+		return imageRenderedMsg{requestID: requestID}
 	}
 }
 

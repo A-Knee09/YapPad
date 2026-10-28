@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -20,6 +21,61 @@ import (
 
 func (m model) refreshList() []list.Item {
 	return listFolderContents(m.currentFolder, m.sortMode)
+}
+
+func waitForPreview(selectionID uint64, path string) tea.Cmd {
+	return func() tea.Msg {
+		timer := time.NewTimer(250 * time.Millisecond)
+		defer timer.Stop()
+		<-timer.C
+		return previewDelayElapsedMsg{selectionID: selectionID, path: path}
+	}
+}
+
+func (m model) updateSelectedPreview() (model, tea.Cmd) {
+	selected, ok := m.list.SelectedItem().(item)
+	if !ok {
+		hadPendingPreview := m.previewSelectionPath != "" || m.selectedFile != "" || m.loadingFile || m.showingImage
+		m.previewSelectionPath = ""
+		m.previewSelectionID++
+		m.previewPending = false
+		m.selectedFile = ""
+		m.loadingFile = false
+		m.showingImage = false
+		m.viewport.SetContent(folderTreePreview(m.currentFolder))
+		if hadPendingPreview {
+			return m, clearKittyGraphics()
+		}
+		return m, nil
+	}
+	if selected.path == m.previewSelectionPath {
+		return m, nil
+	}
+
+	m.previewSelectionPath = selected.path
+	m.previewSelectionID++
+	m.previewPending = false
+	if selected.isDir {
+		m.selectedFile = ""
+		m.loadingFile = false
+		m.showingImage = false
+		m.viewport.SetContent(folderTreePreview(selected.path))
+		m.viewport.GotoTop()
+		return m, clearKittyGraphics()
+	}
+
+	relPath, _ := filepath.Rel(vaultDir, selected.path)
+	m.selectedFile = relPath
+	m.showingImage = false
+	if !m.showPreview {
+		invalidateImageRequest()
+		m.loadingFile = false
+		m.showingImage = false
+		return m, nil
+	}
+	m.loadingFile = true
+	m.previewPending = true
+	return m, tea.Batch(m.spinner.Tick, clearKittyGraphics(), waitForPreview(m.previewSelectionID, selected.path))
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -86,8 +142,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Height = msg.Height - 10
 
 		if m.showPreview && m.selectedFile != "" {
+			if m.previewPending {
+				return m, tea.Batch(clearCmd, m.spinner.Tick)
+			}
 			m.loadingFile = true
 			return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
+		}
+		if m.previewSelectionPath == "" {
+			var previewCmd tea.Cmd
+			m, previewCmd = m.updateSelectedPreview()
+			return m, tea.Batch(clearCmd, previewCmd)
 		}
 
 		return m, clearCmd
@@ -97,8 +161,24 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+	case previewDelayElapsedMsg:
+		if msg.selectionID != m.previewSelectionID || msg.path != m.previewSelectionPath {
+			return m, nil
+		}
+		if !m.showPreview || m.settingsOpen || m.editorMode || m.inputMode || m.deleting {
+			m.previewPending = false
+			m.loadingFile = false
+			return m, nil
+		}
+		m.previewPending = false
+		return m, m.loadFileOrImage(msg.path)
+
 	case fileLoadedMsg:
+		if !isCurrentImageRequest(msg.requestID) {
+			return m, nil
+		}
 		m.loadingFile = false
+		m.previewPending = false
 		m.showingImage = false
 		wrapped := wordwrap.String(msg.content, m.viewport.Width)
 		m.viewport.SetContent(wrapped)
@@ -108,12 +188,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.list.SetItems(m.refreshList())
 		return m, m.list.NewStatusMessage("Saved!")
 
-	case clearViewportMsg:
-		m.viewport.SetContent(strings.Repeat("\n", m.viewport.Height))
-
 	case imageRenderedMsg:
+		if !isCurrentImageRequest(msg.requestID) {
+			return m, nil
+		}
 		m.loadingFile = false
-		m.showingImage = true
+		m.previewPending = false
+		if msg.err != nil {
+			m.showingImage = false
+			m.viewport.SetContent("Image preview failed: " + msg.err.Error())
+		} else {
+			m.showingImage = true
+			m.viewport.SetContent("")
+		}
 
 	case tea.MouseMsg:
 		if m.fullPreview {
@@ -548,6 +635,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m = newM.(model)
 
 			if !m.showPreview {
+				m.previewSelectionID++
+				m.previewPending = false
+				m.loadingFile = false
 				m.showingImage = false
 				return m, tea.Batch(resizeCmd, clearKittyGraphics())
 			}
@@ -568,9 +658,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// save originals for cancel
 			m.tempTheme = themeOptions[m.themeIndex]
 			m.tempEditor = m.editor
-			if m.showingImage {
+			if m.showingImage || m.loadingFile {
 				m.showingImage = false
-				return m, tea.Batch(clearKittyGraphics(), func() tea.Msg { return nil })
+				m.loadingFile = false
+				return m, clearKittyGraphics()
 			}
 			// set current index
 			for i, t := range themeOptions {
@@ -616,13 +707,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.list.SetItems(m.refreshList())
 				m.list.Title = "Contents of " + filepath.Base(m.currentFolder)
 				m.list.ResetSelected()
-				m.selectedFile = ""
-				m.loadingFile = false
-				m.showingImage = false
+				m.previewSelectionPath = ""
 				m.fullPreview = false
-				m.viewport.SetContent(folderTreePreview(m.currentFolder))
-				m.viewport.GotoTop()
-				return m, clearKittyGraphics()
+				var previewCmd tea.Cmd
+				m, previewCmd = m.updateSelectedPreview()
+				return m, previewCmd
 			}
 
 		case msg.String() == "enter":
@@ -635,10 +724,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					m.list.SetItems(m.refreshList())
 					m.list.Title = "Contents of " + filepath.Base(m.currentFolder)
 					m.list.ResetSelected()
-					m.selectedFile = ""
-					m.viewport.SetContent(folderTreePreview(m.currentFolder))
-					m.viewport.GotoTop()
-					return m, nil
+					m.previewSelectionPath = ""
+					var previewCmd tea.Cmd
+					m, previewCmd = m.updateSelectedPreview()
+					return m, previewCmd
 				} else {
 					path := it.path
 					if isImageFile(path) {
@@ -659,29 +748,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.list, cmdList = m.list.Update(msg)
 
 	var cmdRead tea.Cmd
-	if m.list.SelectedItem() != nil {
-		i := m.list.SelectedItem().(item)
-		if i.isDir {
-			wasImage := m.showingImage
-			m.selectedFile = ""
-			m.loadingFile = false
-			m.showingImage = false
-			m.viewport.SetContent(folderTreePreview(i.path))
-			m.viewport.GotoTop()
-			if wasImage {
-				cmdRead = clearKittyGraphics()
-			}
-		} else {
-			relPath, _ := filepath.Rel(vaultDir, i.path)
-			if relPath != m.selectedFile {
-				m.selectedFile = relPath
-				if m.showPreview {
-					m.loadingFile = true
-					cmdRead = tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
-				}
-			}
-		}
-	}
+	m, cmdRead = m.updateSelectedPreview()
 	var cmdViewport tea.Cmd
 	m.viewport, cmdViewport = m.viewport.Update(msg)
 

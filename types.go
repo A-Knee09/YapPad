@@ -19,12 +19,19 @@ type fileEditedMsg struct {
 }
 
 type fileLoadedMsg struct {
-	content string
+	content   string
+	requestID uint64
 }
 
-type imageRenderedMsg struct{}
+type imageRenderedMsg struct {
+	requestID uint64
+	err       error
+}
 
-type clearViewportMsg struct{}
+type previewDelayElapsedMsg struct {
+	selectionID uint64
+	path        string
+}
 
 // List item
 
