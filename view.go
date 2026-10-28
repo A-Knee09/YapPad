@@ -195,7 +195,7 @@ func (m model) View() string {
 	sortStatus := m.statusStyle().Render(fmt.Sprintf("Sort: %s", m.sortMode))
 	header := lipgloss.JoinHorizontal(lipgloss.Center, title, sortStatus)
 
-	deletePrompt := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render("  Are you sure you want to delete this file?") +
+	deletePrompt := lipgloss.NewStyle().Foreground(m.theme.Accent).Bold(true).Render("  Are you sure you want to delete this item?") +
 		lipgloss.NewStyle().Foreground(m.theme.Secondary).Render(" (y/n)")
 
 	if m.deleting {
@@ -245,7 +245,7 @@ func (m model) View() string {
 		if m.folderCreationMode {
 			prompt = "Folder Name"
 		} else if m.moveMode {
-			prompt = "Move Destination"
+			prompt = "Move to (relative to this folder; .. = parent)"
 		}
 
 		if m.inputStep == 0 || m.folderCreationMode || m.moveMode {

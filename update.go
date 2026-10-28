@@ -363,16 +363,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			switch msg.String() {
 			case "y", "Y":
 				if it, ok := m.list.SelectedItem().(item); ok {
-					path := it.path
-					os.Remove(path)
-					deleteMetaDesc(path)
+					if err := removePathWithMetadata(it.path); err != nil {
+						m.deleting = false
+						return m, m.list.NewStatusMessage("Delete failed: " + err.Error())
+					}
 					m.list.SetItems(m.refreshList())
+					m.list.ResetSelected()
 					m.deleting = false
 					m.selectedFile = ""
 					m.showingImage = false
-					m.viewport.SetContent("")
+					m.previewSelectionPath = ""
+					m.previewSelectionID++
+					var previewCmd tea.Cmd
+					m, previewCmd = m.updateSelectedPreview()
 					statusCmd := m.list.NewStatusMessage("Deleted " + it.title)
-					return m, tea.Batch(statusCmd, clearKittyGraphics())
+					return m, tea.Batch(statusCmd, previewCmd)
 				}
 			case "n", "N", "esc":
 				m.deleting = false
@@ -388,41 +393,47 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 			case "enter":
 				if m.folderCreationMode {
-					name := m.input.Value()
+					name := strings.TrimSpace(m.input.Value())
+					name = strings.TrimRight(name, "/\\")
 					if name != "" {
-						newPath := filepath.Join(m.currentFolder, name)
-						os.MkdirAll(newPath, 0o755)
+						newPath, err := resolveFolderInput(m.currentFolder, name)
+						if err != nil {
+							return m, m.list.NewStatusMessage("Create folder failed: " + err.Error())
+						}
+						if err := os.MkdirAll(newPath, 0o755); err != nil {
+							return m, m.list.NewStatusMessage("Create folder failed: " + err.Error())
+						}
 					}
 					m.folderCreationMode = false
 					m.inputMode = false
 					m.input.SetValue("")
 					m.input.Focus()
 					m.list.SetItems(m.refreshList())
-					return m, nil
+					return m, m.list.NewStatusMessage("Folder created")
 				}
 
 				if m.moveMode {
-					destDirRel := m.input.Value()
-					destDir := filepath.Clean(filepath.Join(vaultDir, destDirRel))
-					os.MkdirAll(destDir, 0o755)
-					oldPath := m.moveTarget
-					newPath := filepath.Join(destDir, filepath.Base(oldPath))
-					if _, err := os.Stat(oldPath); err == nil {
-						desc := readMetaDesc(oldPath)
-						deleteMetaDesc(oldPath)
-						os.Rename(oldPath, newPath)
-						if desc != "" {
-							writeMetaDesc(newPath, desc)
-						}
+					destDir, err := resolveFolderInput(m.currentFolder, m.input.Value())
+					var movedPath string
+					if err == nil {
+						movedPath, err = movePathIntoFolder(m.moveTarget, destDir)
+					}
+					if err != nil {
+						return m, m.list.NewStatusMessage("Move failed: " + err.Error())
 					}
 					m.moveMode = false
 					m.inputMode = false
 					m.input.SetValue("")
 					m.input.Focus()
 					m.list.SetItems(m.refreshList())
+					m.list.ResetSelected()
 					m.selectedFile = ""
-					m.viewport.SetContent("")
-					return m, m.list.NewStatusMessage("Moved file to " + destDirRel)
+					m.previewSelectionPath = ""
+					m.previewSelectionID++
+					var previewCmd tea.Cmd
+					m, previewCmd = m.updateSelectedPreview()
+					movedRelPath, _ := filepath.Rel(vaultDir, movedPath)
+					return m, tea.Batch(m.list.NewStatusMessage("Moved to: "+movedRelPath), previewCmd)
 				}
 
 				if m.renameMode {
@@ -482,8 +493,25 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
+				// A trailing slash means the user intends to create a folder.
+				name := strings.TrimSpace(m.input.Value())
+				if strings.HasSuffix(name, "/") || strings.HasSuffix(name, "\\") {
+					folderPath, err := resolveFolderInput(m.currentFolder, strings.TrimRight(name, "/\\"))
+					if err != nil {
+						return m, m.list.NewStatusMessage("Create folder failed: " + err.Error())
+					}
+					if err := os.MkdirAll(folderPath, 0o755); err != nil {
+						return m, m.list.NewStatusMessage("Create folder failed: " + err.Error())
+					}
+					m.inputMode = false
+					m.inputStep = 0
+					m.input.SetValue("")
+					m.descInput.SetValue("")
+					m.list.SetItems(m.refreshList())
+					return m, m.list.NewStatusMessage("Folder created")
+				}
+
 				// create the file
-				name := m.input.Value()
 				desc := m.descInput.Value()
 
 				var path string
@@ -495,10 +523,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 					path = filepath.Join(m.currentFolder, name)
 				}
+				if !pathIsWithinVault(path) {
+					return m, m.list.NewStatusMessage("New files must stay inside the vault")
+				}
 
-				os.MkdirAll(filepath.Dir(path), 0o755)
+				if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+					return m, m.list.NewStatusMessage("Create file failed: " + err.Error())
+				}
 				if _, err := os.Stat(path); os.IsNotExist(err) {
-					os.WriteFile(path, []byte{}, 0o644)
+					if err := os.WriteFile(path, []byte{}, 0o644); err != nil {
+						return m, m.list.NewStatusMessage("Create file failed: " + err.Error())
+					}
+				} else if err != nil {
+					return m, m.list.NewStatusMessage("Create file failed: " + err.Error())
+				} else if info, err := os.Stat(path); err != nil {
+					return m, m.list.NewStatusMessage("Create file failed: " + err.Error())
+				} else if info.IsDir() {
+					return m, m.list.NewStatusMessage("That path is a folder; it was not opened in the editor")
 				}
 
 				writeMetaDesc(path, desc)
@@ -556,6 +597,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 
+		// While the list filter is active, keys belong to the filter input rather
+		// than global application shortcuts (for example, typing "n" must not
+		// start the new-file flow).
+		if m.list.FilterState() == list.Filtering {
+			m.list, cmd = m.list.Update(msg)
+			var previewCmd tea.Cmd
+			m, previewCmd = m.updateSelectedPreview()
+			return m, tea.Batch(cmd, previewCmd)
+		}
+
 		// NORMAL MODE
 		switch {
 
@@ -575,7 +626,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Delete):
 			if m.list.SelectedItem() != nil {
-				if it, ok := m.list.SelectedItem().(item); ok && !it.isDir {
+				if _, ok := m.list.SelectedItem().(item); ok {
 					m.deleting = true
 				}
 			}
@@ -597,11 +648,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, m.keys.Move):
 			if m.list.SelectedItem() != nil {
-				if it, ok := m.list.SelectedItem().(item); ok && !it.isDir {
+				if it, ok := m.list.SelectedItem().(item); ok {
 					m.inputMode = true
 					m.moveMode = true
 					m.moveTarget = it.path
-					m.input.Placeholder = "Move to: path/relative/to/vault/"
+					m.input.Placeholder = "Destination relative to this folder (.. = parent)"
 					m.input.SetValue("")
 					m.input.Focus()
 				}

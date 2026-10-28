@@ -455,3 +455,136 @@ func folderTreePreview(dirPath string) string {
 	}
 	return tree
 }
+
+func pathIsWithinVault(path string) bool {
+	root, err := filepath.Abs(vaultDir)
+	if err != nil {
+		return false
+	}
+	candidate, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(root, candidate)
+	if err != nil {
+		return false
+	}
+	return rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)))
+}
+
+func resolveFolderInput(base, input string) (string, error) {
+	input = strings.TrimSpace(input)
+	if input == "" || input == "." {
+		return base, nil
+	}
+	dest := input
+	if !filepath.IsAbs(dest) {
+		dest = filepath.Join(base, dest)
+	}
+	dest = filepath.Clean(dest)
+	if !pathIsWithinVault(dest) {
+		return "", fmt.Errorf("destination must stay inside the vault")
+	}
+	return dest, nil
+}
+
+func movePathIntoFolder(source, destFolder string) (string, error) {
+	source = filepath.Clean(source)
+	destFolder = filepath.Clean(destFolder)
+	if !pathIsWithinVault(source) || !pathIsWithinVault(destFolder) {
+		return "", fmt.Errorf("source and destination must stay inside the vault")
+	}
+	info, err := os.Lstat(source)
+	if err != nil {
+		return "", err
+	}
+	if info.IsDir() {
+		rel, err := filepath.Rel(source, destFolder)
+		if err != nil {
+			return "", err
+		}
+		if rel == "." || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
+			return "", fmt.Errorf("cannot move a folder into itself")
+		}
+	}
+	target := filepath.Join(destFolder, filepath.Base(source))
+	if filepath.Clean(target) == source {
+		return "", fmt.Errorf("source is already in that folder")
+	}
+	if _, err := os.Lstat(target); err == nil {
+		return "", fmt.Errorf("a file or folder named %q already exists there", filepath.Base(source))
+	} else if !os.IsNotExist(err) {
+		return "", err
+	}
+
+	type metaEntry struct {
+		path string
+		desc string
+	}
+	var metadata []metaEntry
+	collect := func(path string) {
+		if desc := readMetaDesc(path); desc != "" {
+			metadata = append(metadata, metaEntry{path: path, desc: desc})
+		}
+	}
+	if info.IsDir() {
+		err = filepath.WalkDir(source, func(path string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if !entry.IsDir() {
+				collect(path)
+			}
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+	} else {
+		collect(source)
+	}
+
+	if err := os.MkdirAll(destFolder, 0o755); err != nil {
+		return "", err
+	}
+	if err := os.Rename(source, target); err != nil {
+		return "", err
+	}
+	for _, meta := range metadata {
+		rel, err := filepath.Rel(source, meta.path)
+		if err != nil {
+			continue
+		}
+		newPath := target
+		if rel != "." {
+			newPath = filepath.Join(target, rel)
+		}
+		deleteMetaDesc(meta.path)
+		_ = writeMetaDesc(newPath, meta.desc)
+	}
+	return target, nil
+}
+
+func removePathWithMetadata(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.IsDir() {
+		err = filepath.WalkDir(path, func(filePath string, entry fs.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return walkErr
+			}
+			if !entry.IsDir() {
+				deleteMetaDesc(filePath)
+			}
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+	} else {
+		deleteMetaDesc(path)
+	}
+	return os.RemoveAll(path)
+}
