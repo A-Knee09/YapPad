@@ -281,6 +281,67 @@ func listFolders(dir string) []list.Item {
 	return items
 }
 
+// listFolderContents presents folders and files together in the current directory.
+func listFolderContents(dir string, sMode sortMode) []list.Item {
+	var items []list.Item
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return items
+	}
+
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".") {
+			continue
+		}
+		path := filepath.Join(dir, entry.Name())
+		if entry.IsDir() {
+			items = append(items, item{
+				title: entry.Name(), desc: fmt.Sprintf("Folder (%d files)", countFilesRecursively(path)),
+				isDir: true, path: path,
+			})
+			continue
+		}
+		info, err := entry.Info()
+		if err != nil {
+			continue
+		}
+		modTime := info.ModTime()
+		creTime := modTime
+		if stat, ok := info.Sys().(*syscall.Stat_t); ok {
+			creTime = getCreationTime(stat)
+		}
+		desc := readMetaDesc(path)
+		if desc == "" {
+			desc = "Modified: " + modTime.Format(time.RFC822)
+		}
+		items = append(items, item{title: entry.Name(), desc: desc, path: path, modTime: modTime, creTime: creTime})
+	}
+
+	sort.Slice(items, func(i, j int) bool {
+		a, b := items[i].(item), items[j].(item)
+		if a.isDir != b.isDir {
+			return a.isDir
+		}
+		if a.isDir || sMode == sortNameAsc || sMode == sortNameDesc {
+			if sMode == sortNameDesc {
+				return strings.ToLower(a.title) > strings.ToLower(b.title)
+			}
+			return strings.ToLower(a.title) < strings.ToLower(b.title)
+		}
+		switch sMode {
+		case sortModifiedAsc:
+			return a.modTime.Before(b.modTime)
+		case sortCreatedDesc:
+			return a.creTime.After(b.creTime)
+		case sortCreatedAsc:
+			return a.creTime.Before(b.creTime)
+		default:
+			return a.modTime.After(b.modTime)
+		}
+	})
+	return items
+}
+
 func listFilesOnly(dir string, sMode sortMode) []list.Item {
 	var items []list.Item
 	entries, err := os.ReadDir(dir)
@@ -385,4 +446,12 @@ func buildTree(dirPath string, currentPrefix string) string {
 		}
 	}
 	return sb.String()
+}
+
+func folderTreePreview(dirPath string) string {
+	tree := buildTree(dirPath, "")
+	if tree == "" {
+		return "(Empty Folder)\n"
+	}
+	return tree
 }

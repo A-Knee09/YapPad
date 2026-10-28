@@ -19,10 +19,7 @@ import (
 )
 
 func (m model) refreshList() []list.Item {
-	if m.inFolderFolderMode {
-		return listFolders(m.currentFolder)
-	}
-	return listFilesOnly(m.currentFolder, m.sortMode)
+	return listFolderContents(m.currentFolder, m.sortMode)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -88,15 +85,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Width = viewportWidth
 		m.viewport.Height = msg.Height - 10
 
-		if !m.inFolderFolderMode && m.showPreview && m.selectedFile == "" {
-			if m.list.SelectedItem() != nil {
-				i := m.list.SelectedItem().(item)
-				relPath, _ := filepath.Rel(vaultDir, i.path)
-				m.selectedFile = relPath
-				m.loadingFile = true
-				return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(i.path))
-			}
-		} else if !m.inFolderFolderMode && m.showPreview && m.selectedFile != "" {
+		if m.showPreview && m.selectedFile != "" {
 			m.loadingFile = true
 			return m, tea.Batch(clearCmd, m.spinner.Tick, m.loadFileOrImage(m.resolveFilePath(m.selectedFile)))
 		}
@@ -430,14 +419,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				rel, _ := filepath.Rel(vaultDir, path)
 				m.selectedFile = rel
 
-				m.inFolderFolderMode = false
 				m.inputMode = false
 				m.inputStep = 0
 				m.input.SetValue("")
 				m.descInput.SetValue("")
 				m.input.Focus()
 				m.list.SetItems(m.refreshList())
-				m.list.Title = "Files in " + filepath.Base(m.currentFolder)
+				m.list.Title = "Contents of " + filepath.Base(m.currentFolder)
 
 				if m.editor == "inbuilt" {
 					var editorCmd tea.Cmd
@@ -521,7 +509,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case key.Matches(msg, m.keys.Move):
-			if !m.inFolderFolderMode && m.list.SelectedItem() != nil {
+			if m.list.SelectedItem() != nil {
 				if it, ok := m.list.SelectedItem().(item); ok && !it.isDir {
 					m.inputMode = true
 					m.moveMode = true
@@ -537,12 +525,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.sortMode = (m.sortMode + 1) % 6
 			m.list.SetItems(m.refreshList())
 			m.selectedFile = ""
-			if m.list.SelectedItem() != nil && m.showPreview && !m.inFolderFolderMode {
+			if m.list.SelectedItem() != nil && m.showPreview {
 				i := m.list.SelectedItem().(item)
-				relPath, _ := filepath.Rel(vaultDir, i.path)
-				m.selectedFile = relPath
-				m.loadingFile = true
-				return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
+				if !i.isDir {
+					relPath, _ := filepath.Rel(vaultDir, i.path)
+					m.selectedFile = relPath
+					m.loadingFile = true
+					return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
+				}
 			}
 			return m, nil
 
@@ -621,20 +611,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case msg.String() == "esc":
-			if !m.inFolderFolderMode {
-				m.inFolderFolderMode = true
-				m.list.SetItems(m.refreshList())
-				m.list.Title = "Folders in " + filepath.Base(m.currentFolder)
-				m.list.ResetSelected()
-				m.selectedFile = ""
-				m.viewport.SetContent("")
-				return m, nil
-			} else if m.currentFolder != vaultDir {
+			if m.currentFolder != vaultDir {
 				m.currentFolder = filepath.Dir(m.currentFolder)
 				m.list.SetItems(m.refreshList())
-				m.list.Title = "Folders in " + filepath.Base(m.currentFolder)
+				m.list.Title = "Contents of " + filepath.Base(m.currentFolder)
 				m.list.ResetSelected()
-				return m, nil
+				m.selectedFile = ""
+				m.loadingFile = false
+				m.showingImage = false
+				m.fullPreview = false
+				m.viewport.SetContent(folderTreePreview(m.currentFolder))
+				m.viewport.GotoTop()
+				return m, clearKittyGraphics()
 			}
 
 		case msg.String() == "enter":
@@ -642,30 +630,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				break
 			}
 			if it, ok := m.list.SelectedItem().(item); ok {
-				if m.inFolderFolderMode {
-					if it.isRoot {
-						m.inFolderFolderMode = false
-						m.list.SetItems(m.refreshList())
-						m.list.Title = "Files in " + filepath.Base(m.currentFolder)
-						m.list.ResetSelected()
-						m.selectedFile = ""
-						if m.list.SelectedItem() != nil {
-							i := m.list.SelectedItem().(item)
-							relPath, _ := filepath.Rel(vaultDir, i.path)
-							m.selectedFile = relPath
-							if m.showPreview {
-								m.loadingFile = true
-								return m, tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
-							}
-						}
-						return m, nil
-					} else if it.isDir {
-						m.currentFolder = it.path
-						m.list.SetItems(m.refreshList())
-						m.list.Title = "Folders in " + filepath.Base(m.currentFolder)
-						m.list.ResetSelected()
-						return m, nil
-					}
+				if it.isDir {
+					m.currentFolder = it.path
+					m.list.SetItems(m.refreshList())
+					m.list.Title = "Contents of " + filepath.Base(m.currentFolder)
+					m.list.ResetSelected()
+					m.selectedFile = ""
+					m.viewport.SetContent(folderTreePreview(m.currentFolder))
+					m.viewport.GotoTop()
+					return m, nil
 				} else {
 					path := it.path
 					if isImageFile(path) {
@@ -686,9 +659,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.list, cmdList = m.list.Update(msg)
 
 	var cmdRead tea.Cmd
-	if !m.inFolderFolderMode {
-		if m.list.SelectedItem() != nil {
-			i := m.list.SelectedItem().(item)
+	if m.list.SelectedItem() != nil {
+		i := m.list.SelectedItem().(item)
+		if i.isDir {
+			wasImage := m.showingImage
+			m.selectedFile = ""
+			m.loadingFile = false
+			m.showingImage = false
+			m.viewport.SetContent(folderTreePreview(i.path))
+			m.viewport.GotoTop()
+			if wasImage {
+				cmdRead = clearKittyGraphics()
+			}
+		} else {
 			relPath, _ := filepath.Rel(vaultDir, i.path)
 			if relPath != m.selectedFile {
 				m.selectedFile = relPath
@@ -697,22 +680,6 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					cmdRead = tea.Batch(m.spinner.Tick, m.loadFileOrImage(i.path))
 				}
 			}
-		}
-	} else {
-		if m.list.SelectedItem() != nil {
-			i := m.list.SelectedItem().(item)
-			var targetPath string
-			if i.isRoot {
-				targetPath = m.currentFolder
-			} else {
-				targetPath = i.path
-			}
-			treeStr := buildTree(targetPath, "")
-			if treeStr == "" {
-				treeStr = "(Empty Folder)\n"
-			}
-			m.viewport.SetContent(treeStr)
-			m.viewport.GotoTop()
 		}
 	}
 	var cmdViewport tea.Cmd

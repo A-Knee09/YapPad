@@ -75,7 +75,6 @@ type model struct {
 
 	// Folder navigation state
 	currentFolder      string
-	inFolderFolderMode bool
 	folderCreationMode bool
 	moveMode           bool
 	moveTarget         string
@@ -112,11 +111,11 @@ func initialModel(editor string, themeName string) model {
 		log.Fatal(err)
 	}
 
-	items := listFolders(vaultDir)
+	items := listFolderContents(vaultDir, sortModifiedDesc)
 
 	delegate := list.NewDefaultDelegate()
 	l := list.New(items, delegate, 0, 0)
-	l.Title = "Folders in " + filepath.Base(vaultDir)
+	l.Title = "Contents of " + filepath.Base(vaultDir)
 	l.SetShowTitle(true)
 
 	l.AdditionalFullHelpKeys = func() []key.Binding {
@@ -154,20 +153,19 @@ func initialModel(editor string, themeName string) model {
 	editorOptions = availableEditors()
 
 	return model{
-		list:               l,
-		input:              ti,
-		descInput:          di,
-		spinner:            s,
-		keys:               listKeys,
-		viewport:           viewport.New(0, 0),
-		showPreview:        true,
-		sortMode:           sortModifiedDesc,
-		editor:             editor,
-		theme:              t,
-		themeIndex:         themeIdx,
-		editorIndex:        editorIdx,
-		currentFolder:      vaultDir,
-		inFolderFolderMode: true,
+		list:          l,
+		input:         ti,
+		descInput:     di,
+		spinner:       s,
+		keys:          listKeys,
+		viewport:      viewport.New(0, 0),
+		showPreview:   true,
+		sortMode:      sortModifiedDesc,
+		editor:        editor,
+		theme:         t,
+		themeIndex:    themeIdx,
+		editorIndex:   editorIdx,
+		currentFolder: vaultDir,
 	}
 }
 
