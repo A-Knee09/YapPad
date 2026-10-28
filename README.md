@@ -71,11 +71,11 @@ yap --help            # show help
 
 ### Notes & Files
 
-Press `ctrl n` to create a new note. You will be prompted for a filename, then an optional description. Pressing enter on an empty filename creates a date-stamped file. Pressing enter on an empty description skips it and falls back to showing the modified date.
+Press `n` to create a new note. You will be prompted for a filename, then an optional description. An empty filename creates `note.md`; a filename ending in `/` creates a folder instead. Press `ctrl+d` to create a folder directly.
 
 Each note can have a custom description shown below its title in the list. Descriptions are stored in `.metadesc/` as sidecar files and never modify note content.
 
-Press `ctrl r` to rename a note. You will be prompted for the new name and description. Skipping the description preserves the existing one.
+Press `r` to rename a note. You will be prompted for the new name and description. Skipping the description preserves the existing one.
 
 
 ### Themes
@@ -147,12 +147,12 @@ Set in config or override per session with `--theme <name>`.
 
 ### Preview Pane
 
-Toggle with `ctrl+p`. Shows syntax-highlighted text and markdown previews, and inline image previews for supported formats. Auto-hides if the terminal is too narrow. Image preview requires `chafa` and a Kitty-compatible terminal.
+Toggle with `p`. Shows syntax-highlighted text and markdown previews, and inline image previews for supported formats. Auto-hides if the terminal is too narrow. Image preview requires `chafa` and a Kitty-compatible terminal.
 
 
 ### Sorting
 
-Press `ctrl+s` to cycle through sort modes: Modified (newest/oldest), Created (newest/oldest), Alphabetic (ascending/descending).
+Press `s` to cycle through sort modes: Modified (newest/oldest), Created (newest/oldest), Alphabetic (ascending/descending).
 
 ### Editors
 
@@ -166,15 +166,19 @@ Scroll the file list and preview pane independently with the mouse wheel.
 
 | Key | Action |
 |-----|--------|
-| `ctrl n` | New note |
-| `ctrl r` | Rename note |
-| `ctrl d` | Delete note |
-| `enter` | Open in editor |
-| `ctrl+p` | Toggle preview |
-| `ctrl+s` | Cycle sort |
-| `/` | Filter notes |
-| `?` | Toggle help |
-| `esc` | Cancel |
+| `n` | Create a note; a name ending in `/` creates a folder |
+| `ctrl+d` | Create a folder |
+| `r` | Rename the selected note |
+| `m` | Move the selected note or folder; destinations are relative to the current folder (`..` means parent) |
+| `d` | Delete the selected note or folder |
+| `enter` | Open a note or enter a folder |
+| `p` | Toggle the preview pane |
+| `f` | Open the full reader view |
+| `s` | Cycle sort modes |
+| `/` | Filter the current folder |
+| `h` | Toggle the list help bar |
+| `,` | Open settings |
+| `esc` | Go to the parent folder or cancel the current action |
 | `q` | Quit |
 
 ## Config

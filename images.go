@@ -49,7 +49,7 @@ func isImageFile(path string) bool {
 func clearKittyGraphics() tea.Cmd {
 	requestID := invalidateImageRequest()
 	return func() tea.Msg {
-		writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a,q=2\x1b\\"))
+		writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a,q=1\x1b\\"))
 		return nil
 	}
 }
@@ -278,7 +278,7 @@ func renderKittyImage(requestID uint64, asset kittyImageAsset, cols, rows, xOffs
 	}
 	var buf bytes.Buffer
 	for _, id := range kittyPendingDeletes {
-		buf.WriteString(fmt.Sprintf("\x1b_Ga=d,d=i,i=%d,q=2\x1b\\", id))
+		buf.WriteString(fmt.Sprintf("\x1b_Ga=d,d=i,i=%d,q=1\x1b\\", id))
 	}
 	kittyPendingDeletes = nil
 	fitCols, fitRows := fitImageToCells(cols, rows, asset.width, asset.height)
@@ -287,10 +287,10 @@ func renderKittyImage(requestID uint64, asset kittyImageAsset, cols, rows, xOffs
 	buf.WriteString("\x1b[s")
 	buf.WriteString(fmt.Sprintf("\x1b[%d;%dH", yOffset, xOffset))
 	if currentAsset.uploaded {
-		buf.WriteString(fmt.Sprintf("\x1b_Ga=p,i=%d,p=1,c=%d,r=%d,C=1,q=2\x1b\\", asset.id, fitCols, fitRows))
+		buf.WriteString(fmt.Sprintf("\x1b_Ga=p,i=%d,p=1,c=%d,r=%d,C=1,q=1\x1b\\", asset.id, fitCols, fitRows))
 	} else {
 		payload := base64.StdEncoding.EncodeToString([]byte(asset.path))
-		buf.WriteString(fmt.Sprintf("\x1b_Ga=T,t=f,f=100,i=%d,p=1,c=%d,r=%d,C=1,q=2;%s\x1b\\", asset.id, fitCols, fitRows, payload))
+		buf.WriteString(fmt.Sprintf("\x1b_Ga=T,t=f,f=100,i=%d,p=1,c=%d,r=%d,C=1,q=1;%s\x1b\\", asset.id, fitCols, fitRows, payload))
 		currentAsset.uploaded = true
 		kittyAssets[asset.key] = currentAsset
 	}
@@ -339,13 +339,13 @@ func cleanupKittyImageCache() {
 	imageOutputMu.Lock()
 	kittyAssetsMu.Lock()
 	for _, asset := range kittyAssets {
-		_, _ = fmt.Fprintf(os.Stdout, "\x1b_Ga=d,d=i,i=%d,q=2\x1b\\", asset.id)
+		_, _ = fmt.Fprintf(os.Stdout, "\x1b_Ga=d,d=i,i=%d,q=1\x1b\\", asset.id)
 		if asset.tempPath != "" {
 			_ = os.Remove(asset.tempPath)
 		}
 	}
 	for _, id := range kittyPendingDeletes {
-		_, _ = fmt.Fprintf(os.Stdout, "\x1b_Ga=d,d=i,i=%d,q=2\x1b\\", id)
+		_, _ = fmt.Fprintf(os.Stdout, "\x1b_Ga=d,d=i,i=%d,q=1\x1b\\", id)
 	}
 	kittyAssets = map[string]kittyImageAsset{}
 	kittyAssetOrder = nil
@@ -387,6 +387,54 @@ func cacheChafaImage(key string, content []byte) {
 	}
 }
 
+// quietKittyGraphics suppresses success replies for every Kitty command.
+// Chafa can omit the quiet flag on continuation chunks, allowing terminal
+// acknowledgements to leak into Bubble Tea as keyboard input.
+func quietKittyGraphics(content []byte) []byte {
+	start, end := []byte("\x1b_G"), []byte("\x1b\\")
+	var out bytes.Buffer
+	for offset := 0; offset < len(content); {
+		relStart := bytes.Index(content[offset:], start)
+		if relStart < 0 {
+			out.Write(content[offset:])
+			break
+		}
+		cmdStart := offset + relStart
+		out.Write(content[offset:cmdStart])
+		relEnd := bytes.Index(content[cmdStart+len(start):], end)
+		if relEnd < 0 {
+			out.Write(content[cmdStart:])
+			break
+		}
+		cmdEnd := cmdStart + len(start) + relEnd
+		command := content[cmdStart+len(start) : cmdEnd]
+		headerEnd := bytes.IndexByte(command, ';')
+		payload := []byte(nil)
+		if headerEnd >= 0 {
+			payload = command[headerEnd:]
+		} else {
+			headerEnd = len(command)
+		}
+		header := bytes.Split(command[:headerEnd], []byte{','})
+		quietSet := false
+		for i, field := range header {
+			if bytes.HasPrefix(field, []byte("q=")) {
+				header[i] = []byte("q=1")
+				quietSet = true
+			}
+		}
+		if !quietSet {
+			header = append(header, []byte("q=1"))
+		}
+		out.Write(start)
+		out.Write(bytes.Join(header, []byte{','}))
+		out.Write(payload)
+		out.Write(end)
+		offset = cmdEnd + len(end)
+	}
+	return out.Bytes()
+}
+
 func renderImage(path string, cols, rows, xOffset, yOffset int, requestID uint64, ctx context.Context) tea.Cmd {
 	return func() tea.Msg {
 		if kittyGraphicsAvailable() {
@@ -398,7 +446,7 @@ func renderImage(path string, cols, rows, xOffset, yOffset int, requestID uint64
 		// Remove the previous Kitty image before doing any potentially slow work.
 		// This matters during terminal resizes, where the old image can otherwise
 		// cover the loading indicator until chafa finishes.
-		if !writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a,q=2\x1b\\")) {
+		if !writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a,q=1\x1b\\")) {
 			return nil
 		}
 
@@ -429,6 +477,7 @@ func renderImage(path string, cols, rows, xOffset, yOffset int, requestID uint64
 			}
 			return imageRenderedMsg{requestID: requestID, err: err}
 		}
+		output = quietKittyGraphics(output)
 
 		cacheChafaImage(key, output)
 

@@ -92,6 +92,40 @@ type model struct {
 
 func (m model) Init() tea.Cmd { return nil }
 
+// imageListItemBounds returns the terminal box occupied by list items, excluding
+// the list's title, status bar, pagination, and help rows.
+func (m model) imageListItemBounds() (rows, yOffset int) {
+	sectionRows := 0
+	if m.list.ShowTitle() || m.list.FilterState() == list.Filtering {
+		title := m.list.Styles.Title.Render(m.list.Title)
+		sectionRows += lipgloss.Height(m.list.Styles.TitleBar.Render(title))
+	}
+	if m.list.ShowStatusBar() {
+		statusStyle := lipgloss.NewStyle().Foreground(m.theme.Muted).Padding(0, 0, 1, 2)
+		sectionRows += lipgloss.Height(statusStyle.Render("0 items"))
+	}
+	if m.list.ShowPagination() && m.list.Paginator.TotalPages >= 2 {
+		sectionRows += lipgloss.Height(m.list.Styles.PaginationStyle.Render(m.list.Paginator.View()))
+	}
+	if m.list.ShowHelp() {
+		sectionRows += lipgloss.Height(m.list.Styles.HelpStyle.Render(m.list.Help.View(m.list)))
+	}
+
+	rows = max(1, m.list.Height()-sectionRows)
+	// The list begins on terminal row 4 after the app header and spacer.
+	leadingRows := 0
+	if m.list.ShowTitle() || m.list.FilterState() == list.Filtering {
+		title := m.list.Styles.Title.Render(m.list.Title)
+		leadingRows += lipgloss.Height(m.list.Styles.TitleBar.Render(title))
+	}
+	if m.list.ShowStatusBar() {
+		statusStyle := lipgloss.NewStyle().Foreground(m.theme.Muted).Padding(0, 0, 1, 2)
+		leadingRows += lipgloss.Height(statusStyle.Render("0 items"))
+	}
+	yOffset = 4 + leadingRows
+	return rows, yOffset
+}
+
 func initialModel(editor string, themeName string) model {
 	themeIdx := 0
 	for i, t := range themeOptions {
@@ -179,14 +213,12 @@ func (m model) loadFileOrImage(path string) tea.Cmd {
 		xOffset := listWidth + 6
 
 		cols := m.viewport.Width - 1
-		rows := m.height - 5
-
-		yOffset := 4
+		rows, yOffset := m.imageListItemBounds()
 
 		return renderImage(path, cols, rows, xOffset, yOffset, requestID, ctx)
 	}
 	return func() tea.Msg {
-		if !writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a,q=2\x1b\\")) {
+		if !writeImageIfCurrent(requestID, []byte("\x1b_Ga=d,d=a,q=1\x1b\\")) {
 			return nil
 		}
 		msg := readFile(path)()
