@@ -64,6 +64,7 @@ yap .                 # open current directory as vault (this session only)
 yap --theme gruvbox   # override theme for this session
 yap --editor nvim     # override editor for this session
 yap --no-splash       # skip the startup animation
+yap --splash shuffle  # pick the startup animation: decrypt, shuffle, random
 yap --version         # print version
 yap --help            # show help
 ```
@@ -191,6 +192,7 @@ theme = "default"
 editor = "inbuilt"
 vault = "/home/user/.YapPad"
 no_splash = false     # true disables the startup animation (any key also skips it)
+splash_effect = "random"  # decrypt, shuffle, or random
 ```
 
 ## Storage

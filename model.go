@@ -134,7 +134,7 @@ func (m model) imageListItemBounds() (rows, yOffset int) {
 	return rows, yOffset
 }
 
-func initialModel(editor string, themeName string, showSplash bool) model {
+func initialModel(editor string, themeName string, showSplash bool, splashEffect string) model {
 	themeIdx := 0
 	for i, t := range themeOptions {
 		if t == themeName {
@@ -199,7 +199,7 @@ func initialModel(editor string, themeName string, showSplash bool) model {
 
 	var sp splash
 	if showSplash {
-		sp = newSplash(t)
+		sp = newSplash(t, splashEffect)
 	}
 
 	return model{

@@ -17,7 +17,8 @@ type Config struct {
 	Editor string `toml:"editor"`
 	Vault  string `toml:"vault"`
 
-	NoSplash bool `toml:"no_splash,omitempty"`
+	NoSplash     bool   `toml:"no_splash,omitempty"`
+	SplashEffect string `toml:"splash_effect,omitempty"`
 }
 
 func configPath() string {
