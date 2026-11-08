@@ -81,6 +81,24 @@ func (m model) updateSelectedPreview() (model, tea.Cmd) {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	if m.splash.active {
+		if k, ok := msg.(tea.KeyMsg); ok && k.String() == "ctrl+c" {
+			return m, tea.Quit
+		}
+		splashCmd, done := m.splash.update(msg)
+		if !done {
+			return m, splashCmd
+		}
+		// Hand the deferred terminal size to the main UI now that it's visible.
+		if m.splash.sized {
+			return m.Update(tea.WindowSizeMsg{Width: m.splash.width, Height: m.splash.height})
+		}
+		return m, nil
+	}
+	if _, ok := msg.(splashTickMsg); ok {
+		return m, nil
+	}
+
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:

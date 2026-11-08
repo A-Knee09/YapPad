@@ -34,6 +34,7 @@ func main() {
 	// Parse flags — override config values if explicitly provided
 	themeFlag := flag.String("theme", "", "")
 	editorFlag := flag.String("editor", "", "")
+	noSplashFlag := flag.Bool("no-splash", false, "")
 	flag.Usage = func() {
 		fmt.Fprintf(os.Stderr, `YapPad %s — a terminal note-taking app
 
@@ -46,6 +47,7 @@ Usage:
 Flags:
   --theme <name>    override config theme for this session
   --editor <name>   override config editor for this session
+  --no-splash       skip the startup animation (or set no_splash = true in config)
   --version         print version and exit
   --help            show this help
 
@@ -94,7 +96,7 @@ Keybindings:
 	vaultDir = cfg.Vault
 
 	p := tea.NewProgram(
-		initialModel(cfg.Editor, cfg.Theme),
+		initialModel(cfg.Editor, cfg.Theme, !cfg.NoSplash && !*noSplashFlag),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)

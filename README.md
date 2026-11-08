@@ -63,6 +63,7 @@ yap                   # open your configured vault
 yap .                 # open current directory as vault (this session only)
 yap --theme gruvbox   # override theme for this session
 yap --editor nvim     # override editor for this session
+yap --no-splash       # skip the startup animation
 yap --version         # print version
 yap --help            # show help
 ```
@@ -189,6 +190,7 @@ Scroll the file list and preview pane independently with the mouse wheel.
 theme = "default"
 editor = "inbuilt"
 vault = "/home/user/.YapPad"
+no_splash = false     # true disables the startup animation (any key also skips it)
 ```
 
 ## Storage

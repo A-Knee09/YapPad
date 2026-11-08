@@ -88,9 +88,17 @@ type model struct {
 	sortMode sortMode
 	keys     *keyMap
 	ready    bool
+
+	// Startup animation
+	splash splash
 }
 
-func (m model) Init() tea.Cmd { return nil }
+func (m model) Init() tea.Cmd {
+	if m.splash.active {
+		return splashTick()
+	}
+	return nil
+}
 
 // imageListItemBounds returns the terminal box occupied by list items, excluding
 // the list's title, status bar, pagination, and help rows.
@@ -126,7 +134,7 @@ func (m model) imageListItemBounds() (rows, yOffset int) {
 	return rows, yOffset
 }
 
-func initialModel(editor string, themeName string) model {
+func initialModel(editor string, themeName string, showSplash bool) model {
 	themeIdx := 0
 	for i, t := range themeOptions {
 		if t == themeName {
@@ -189,7 +197,13 @@ func initialModel(editor string, themeName string) model {
 	s.Style = lipgloss.NewStyle().Foreground(t.Primary)
 	editorOptions = availableEditors()
 
+	var sp splash
+	if showSplash {
+		sp = newSplash(t)
+	}
+
 	return model{
+		splash:        sp,
 		list:          l,
 		input:         ti,
 		descInput:     di,

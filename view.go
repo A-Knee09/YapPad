@@ -180,6 +180,9 @@ func (m model) settingsOverlay() string {
 }
 
 func (m model) View() string {
+	if m.splash.active {
+		return m.splash.view()
+	}
 	delegate := list.NewDefaultDelegate()
 	delegate.Styles = m.listItemStyles()
 	m.list.SetDelegate(delegate)
